@@ -233,10 +233,9 @@
   </div>
   <div class="actionbar">
     <div id="dl-panel" class="dl-panel hidden">
-      <span class="dl-hint">Dateien erstellt. Falls der Download nicht automatisch startet, hier herunterladen:</span>
+      <span class="dl-hint">Datei erstellt. Falls der Download nicht automatisch startet, hier herunterladen:</span>
       <div class="dl-row">
         <a id="dl-pdf" class="btn ghost dl-link" download>Textdatei (PDF)</a>
-        <a id="dl-html" class="btn ghost dl-link" download>Auswertungsdatei (HTML) – für die Lehrkraft</a>
       </div>
     </div>
     <button class="btn" id="export-btn">Text in PDF-Datei umwandeln</button>
@@ -248,8 +247,8 @@
   <div class="panel">
     <a href="#" class="backlink" id="back-start">← zurück</a>
     <h1>Auswertung für die Lehrkraft</h1>
-    <p class="sub">Im Normalfall genügt es, die mitgelieferte HTML-Datei (…_Auswertung.html) per Doppelklick zu öffnen und den Code einzugeben.
-       Dieser Bereich ist nur als Reserve gedacht: Falls einmal nur die PDF vorliegt, hier die PDF laden und den Code eingeben.</p>
+    <p class="sub">Die abgegebene PDF-Datei der Schülerin oder des Schülers laden und den Code eingeben.
+       Die vollständige Auswertung ist verschlüsselt in der PDF enthalten und wird erst mit korrektem Code angezeigt.</p>
 
     <div class="drop">
       <p style="margin:0 0 10px"><strong>PDF auswählen</strong> oder hierher ziehen</p>
@@ -337,7 +336,7 @@ function buildPdf(opts){
   const nPages=pages.length;
 
   // roter Moodle-Hinweis unten auf der letzten Seite
-  const noteText="Bitte die zugeh\u00f6rige Auswertungsdatei bei Moodle hochladen.";
+  const noteText="Bitte diese PDF-Datei bei Moodle hochladen.";
   const noteLines=wrapText(noteText,usableW,NOTE_SIZE);
   const noteBottom=46;
 
@@ -602,35 +601,31 @@ $("export-btn").addEventListener("click",async()=>{
     const doc=assembleDoc(name);
     const code=_kf(studentVorname);
     const bundle=await aesEncrypt(JSON.stringify(doc.payload),code);
-    const teacherHtml=buildTeacherHtml(bundle);
 
     const pad2=n=>String(n).padStart(2,"0");
     const today=new Date();
     const datum=pad2(today.getDate())+pad2(today.getMonth()+1)+today.getFullYear(); // TTMMJJJJ
     const vn=fileSafe(studentVorname), nn=fileSafe(studentNachname);
     const pdfName="Textdatei_"+vn+"_"+nn+"_"+datum+".pdf";
-    const htmlName="Auswertungsdatei_"+vn+"_"+nn+"_"+datum+".html";
 
-    // PDF: Fragen (unterstrichen) + Antworten + roter Moodle-Hinweis; Tracking-Daten als %TRACKDATA-Reserve
+    // PDF: Fragen (unterstrichen) + Antworten + roter Moodle-Hinweis.
+    // Die vollständige Auswertung steckt verschlüsselt als %TRACKDATA in der PDF (Lehrkraft-Modus).
     const pdfStr=buildPdf({name,blocks:doc.blocks,trackB64:bundle});
     const u8=new Uint8Array(pdfStr.length);
     for(let i=0;i<pdfStr.length;i++)u8[i]=pdfStr.charCodeAt(i)&0xFF;
     const pdfBlob=new Blob([u8],{type:"application/pdf"});
-    const htmlBlob=new Blob([teacherHtml],{type:"text/html;charset=utf-8"});
 
-    // Fallback-Links setzen (bleiben anklickbar, falls der Auto-Download blockiert wird)
-    const dlPdf=$("dl-pdf"), dlHtml=$("dl-html");
+    // Fallback-Link setzen (bleibt anklickbar, falls der Auto-Download blockiert wird)
+    const dlPdf=$("dl-pdf");
     setLink(dlPdf,pdfBlob,pdfName);
-    setLink(dlHtml,htmlBlob,htmlName);
     $("dl-panel").classList.remove("hidden");
 
-    // Beide Dateien direkt im Klick-Kontext herunterladen (ohne Verzögerung)
+    // PDF direkt im Klick-Kontext herunterladen
     dlPdf.click();
-    dlHtml.click();
 
-    btn.textContent="PDF + Auswertung erstellt ✓";
+    btn.textContent="PDF erstellt ✓";
     setTimeout(()=>{ btn.textContent=old; }, 2200);
-  }catch(err){ alert("Fehler beim Erzeugen der Dateien: "+err.message); btn.textContent=old; }
+  }catch(err){ alert("Fehler beim Erzeugen der Datei: "+err.message); btn.textContent=old; }
   finally{ btn.disabled=false; }
 });
 
