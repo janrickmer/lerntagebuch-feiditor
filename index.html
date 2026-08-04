@@ -606,7 +606,7 @@ $("export-btn").addEventListener("click",async()=>{
     const today=new Date();
     const datum=pad2(today.getDate())+pad2(today.getMonth()+1)+today.getFullYear(); // TTMMJJJJ
     const vn=fileSafe(studentVorname), nn=fileSafe(studentNachname);
-    const pdfName="Textdatei_"+vn+"_"+nn+"_"+datum+".pdf";
+    const pdfName="Lerntagebucheintrag_"+vn+"_"+nn+"_"+datum+".pdf";
 
     // PDF: Fragen (unterstrichen) + Antworten + roter Moodle-Hinweis.
     // Die vollständige Auswertung steckt verschlüsselt als %TRACKDATA in der PDF (Lehrkraft-Modus).
