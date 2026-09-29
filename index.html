@@ -120,6 +120,23 @@
   #editor .task.selected .task-x{display:block}
   #editor .task .task-x:hover{background:#b3261e; color:#fff}
 
+  /* Lerntagebuch: Kalenderfeld für das Datum der Unterrichtssitzung im Block von Frage 1 */
+  #editor .task .ltb-date{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:8px 0 4px; font-weight:400}
+  #editor .task .ltb-date label{font-size:14px; color:var(--muted); font-weight:600}
+  #editor .task .ltb-date input{
+    font:500 15px var(--sans); color:var(--ink); padding:5px 8px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper2); cursor:pointer;
+  }
+  #editor .task .ltb-date input:focus{outline:none; border-color:var(--accent2); box-shadow:0 0 0 3px rgba(138,106,60,.16)}
+  #editor .task .ltb-date.missing input{border-color:#b3261e; box-shadow:0 0 0 3px rgba(179,38,30,.14)}
+  #editor .task .ltb-date-err{flex-basis:100%; color:#b3261e; font-size:13.5px; font-weight:600}
+  #editor .task .ltb-date-err:empty{display:none}
+  #editor .task .ltb-date-out{display:none}
+  #editor .task .ltb-rest{white-space:pre-line}
+  /* Im Lerntagebuch gibt es nur die fünf festen Fragen: Text in selbst eingefügten Aufgabenblöcken würde als vorgegebener
+     Aufgabentext (schwarz, nicht gewertet) zählen – deshalb hier kein Button „Neuen Aufgabentext eintragen“. */
+  #taskbtn, #taskform{display:none !important}
+
   /* Button „Neuen Aufgabentext eintragen" – schwebt immer eine Zeile unter der aktuellen Eingabezeile */
   .taskbtn{
     position:absolute; left:60px; top:56px; z-index:3; font-family:var(--sans); font-size:12.5px; font-weight:600;
@@ -397,12 +414,15 @@
   </div>
 </section>
 
-<div id="pagefoot" class="copyright">Copyright Jan-Rickmer Feindt · <a href="#" id="foot-teacher">Zugang für die Lehrkraft</a></div>
+<!-- Die Auswertung für Lehrkräfte läuft über „Check des Feind(t)es“ (check.janrickmer.de); im Lerntagebuch-Feiditor gibt es
+     deshalb keinen Lehrkraft-Zugang mehr. Das leere, verborgene Element bleibt stehen, weil die gemeinsame Feiditor-Engine
+     (identisch mit dem normalen Feiditor und den Escape-Rooms) es beim Laden anspricht. -->
+<div id="pagefoot" class="copyright">Copyright Jan-Rickmer Feindt<a href="#" id="foot-teacher" hidden aria-hidden="true" tabindex="-1"></a></div>
 
 <!-- Lerntagebuch-Konfiguration: die fünf Fragen sind als feste Aufgabenblöcke vorbefüllt (schwarz in der
      Lehrkraft-Auswertung, nicht gewertet), keine Escape-Room-Option auf der Startseite, eigene Beschriftung der
      ersten Auswahl-Schaltfläche, eigener PDF-Dateiname. Die Engine darunter ist identisch mit dem normalen
-     Feiditor (feiditor.janrickmer.de). -->
+     Feiditor (feiditor.janrickmer.de); das Kalenderfeld für das Datum bei Frage 1 ergänzt ein eigenes Skript am Ende. -->
 <script>
 window.FEIDITOR_CONFIG={
   prefill:[
@@ -1798,6 +1818,128 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     const red=Array.isArray(D.redFields)?D.redFields:(Array.isArray(D.red)?D.red:[]);
     startEscapeMode(D.firstName, D.lastName, Array.isArray(D.tasks)?D.tasks:[], red);
   }catch(e){ console.error("Escape-Auto-Start fehlgeschlagen:", e); }
+})();
+</script>
+<script>
+/* ====================================================================== *
+ *  Lerntagebuch: Datum der Unterrichtssitzung (Frage 1) per Kalenderfeld  *
+ *  statt Eintippen. Das gewählte Datum steht als zweite Zeile im festen   *
+ *  Aufgabenblock von Frage 1 („Dienstag, 29.09.2026“) – vorgegebener      *
+ *  System-Text wie die Frage selbst: nicht eintippbar, nicht gewertet,    *
+ *  in der PDF sichtbar und für „Check des Feind(t)es“ auslesbar. Das      *
+ *  Feld selbst (data-noser) wird nie mit serialisiert. Die fertige PDF    *
+ *  lässt sich erst erzeugen, wenn ein Datum gewählt ist; Zwischenstände   *
+ *  jederzeit. Die gemeinsame Feiditor-Engine bleibt unverändert.          *
+ * ====================================================================== */
+(function(){
+  const Q1=String((Array.isArray(CFG.prefill)&&CFG.prefill[0])||"").trim();
+  if(!Q1) return;
+  const WD=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+  const p2=n=>String(n).padStart(2,"0");
+  function todayIso(){ const d=new Date(); return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()); }
+  function isoValid(iso){
+    const mm=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||"")); if(!mm) return false;
+    const y=+mm[1], mo=+mm[2], d=+mm[3]; if(y<2000||y>2100) return false;
+    const dt=new Date(y,mo-1,d); return dt.getFullYear()===y&&dt.getMonth()===mo-1&&dt.getDate()===d;
+  }
+  function labelOf(iso){ const [y,mo,d]=iso.split("-").map(Number); return WD[new Date(y,mo-1,d).getDay()]+", "+p2(d)+"."+p2(mo)+"."+y; }
+  function isoOfLabel(s){ const mm=/(\d{2})\.(\d{2})\.(\d{4})\s*$/.exec(String(s||"")); if(!mm) return ""; const iso=mm[3]+"-"+mm[2]+"-"+mm[1]; return isoValid(iso)?iso:""; }
+  /* Aufgabenblock von Frage 1 (erste Zeile des Aufgabentexts = Frage 1) */
+  function q1Block(){
+    for(const b of editorBlocks()){
+      if(!isTask(b)) continue;
+      const tt=b.querySelector(".task-text");
+      if(tt && String(tt.textContent||"").split("\n")[0].trim()===Q1) return b;
+    }
+    return null;
+  }
+  function chosenIso(b){ const out=b&&b.querySelector(".ltb-date-out"); return out?isoOfLabel(out.textContent):""; }
+  function setErr(b,msg){
+    const box=b.querySelector(".ltb-date"); if(!box) return;
+    box.classList.toggle("missing",!!msg);
+    const er=box.querySelector(".ltb-date-err"); if(er) er.textContent=msg||"";
+  }
+  let seq=0;
+  /* Feld in den Block einsetzen. Ein aus einem Zwischenstand wiederhergestellter Block trägt das Datum als zweite
+     Zeile im Aufgabentext – sie wandert in das (serialisierte) Ausgabe-Element; der Text bleibt Zeichen für Zeichen gleich. */
+  const LABEL_RE=/^[A-Za-zÄÖÜäöüß]+, \d{2}\.\d{2}\.\d{4}$/;
+  function decorate(b){
+    if(b.querySelector(".ltb-date")) return;
+    const tt=b.querySelector(".task-text"); if(!tt) return;
+    const full=String(tt.textContent||""); const nl=full.indexOf("\n");
+    // Zeile 2 ist nur dann das gewählte Datum, wenn sie genau so aussieht („Dienstag, 29.09.2026“). Weitere Zeilen (etwa eine
+    // weitere Frage aus einem älteren Zwischenstand) bleiben sichtbar im Block und unverändert im Text.
+    let rest="", more="";
+    if(nl>=0){
+      const after=full.slice(nl+1), nl2=after.indexOf("\n"), first=nl2>=0?after.slice(0,nl2):after;
+      if(LABEL_RE.test(first)&&isoOfLabel(first)){ rest=first; more=nl2>=0?after.slice(nl2):""; }
+      else more=full.slice(nl);
+      tt.textContent=full.slice(0,nl);
+    }
+    const box=document.createElement("span"); box.className="ltb-date";
+    box.setAttribute("data-noser","1"); box.setAttribute("contenteditable","false");
+    const id="ltb-date-"+(++seq);
+    const lab=document.createElement("label"); lab.htmlFor=id; lab.textContent="Datum auswählen:";
+    const inp=document.createElement("input"); inp.type="date"; inp.id=id; inp.max=todayIso(); inp.required=true;
+    inp.setAttribute("aria-label","Datum der Unterrichtssitzung auswählen");
+    const er=document.createElement("span"); er.className="ltb-date-err"; er.setAttribute("role","alert");
+    box.appendChild(lab); box.appendChild(inp); box.appendChild(er);
+    const out=document.createElement("span"); out.className="ltb-date-out"; out.setAttribute("aria-hidden","true");
+    if(rest){ out.appendChild(document.createElement("br")); out.appendChild(document.createTextNode(rest)); }
+    const x=b.querySelector(".task-x");
+    b.insertBefore(box,x); b.insertBefore(out,x);
+    if(more){ const rs=document.createElement("span"); rs.className="ltb-rest"; rs.textContent=more; b.insertBefore(rs,x); }
+    const iso=isoOfLabel(rest); if(iso) inp.value=iso;
+    // Das Feld gehört nicht zum Editor-Text: Tastatur-, Eingabe- und Klick-Ereignisse nicht an den Editor weitergeben
+    ["keydown","keyup","keypress","beforeinput","input","paste","cut","copy","drop","dragstart","click","mousedown","mouseup","touchstart"]
+      .forEach(ev=>box.addEventListener(ev,e=>e.stopPropagation()));
+    inp.addEventListener("change",()=>setDate(b,inp));
+  }
+  /* Stelle des Ausgabe-Elements im serialisierten Text: kurz ein Markierungszeichen einsetzen und suchen */
+  function outOffset(out){
+    const keep=Array.prototype.slice.call(out.childNodes);
+    out.textContent="\uE000"; const t=serializeEditor().text;
+    out.textContent=""; keep.forEach(n=>out.appendChild(n));
+    const i=t.indexOf("\uE000"); return (i>=0&&i===t.lastIndexOf("\uE000"))?i:-1;
+  }
+  function outText(out){ return (out.querySelector("br")?"\n":"")+(out.textContent||""); }
+  function setDate(b,inp){
+    const out=b.querySelector(".ltb-date-out"); if(!out) return;
+    const iso=String(inp.value||"");
+    let text="";
+    if(iso){
+      if(!isoValid(iso)){ setErr(b,"Bitte wähle ein gültiges Datum aus."); }
+      else if(iso>todayIso()){ setErr(b,"Das Datum darf nicht in der Zukunft liegen."); }
+      else { text=labelOf(iso); setErr(b,""); }
+    }
+    else setErr(b,"");
+    const cur=out.textContent||"";
+    if(cur===text) return;
+    syncTracking("t");                                        // bisher Getipptes übernehmen
+    const off=outOffset(out), oldSer=outText(out), before=prevValue;
+    out.textContent="";
+    if(text){ out.appendChild(document.createElement("br")); out.appendChild(document.createTextNode(text)); }
+    const ser=serializeEditor(), newSer=outText(out);
+    if(off>=0 && ser.text===before.slice(0,off)+newSer+before.slice(off+oldSer.length) && recs.length===before.length){
+      recs.splice(off,oldSer.length,...newSer.split("").map(()=>({src:"s",t:-1})));   // nur die Datumszeile: Systemtext
+      prevValue=ser.text; applySystemFlags(ser.fmt);
+    } else syncTracking("s");                                 // Rückfall: neue Zeichen ohne Tipp-Tempo
+    updateCharcount(); updateEmpty(); hideDlPanel(); positionTaskBtn();
+  }
+  function decorateNow(){ const b=q1Block(); if(b) decorate(b); }
+  new MutationObserver(decorateNow).observe(ed,{childList:true});
+  decorateNow();
+  /* Fertige PDF erst mit Datum (Frage 1 vorhanden). Läuft vor dem Klick-Handler der Engine (Capture-Phase). */
+  window.addEventListener("click",(e)=>{
+    const btn=e.target&&e.target.closest?e.target.closest("#export-btn"):null; if(!btn) return;
+    const b=q1Block(); if(!b) return;                       // Frage 1 entfernt: nichts zu prüfen
+    decorate(b);
+    if(chosenIso(b)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    setErr(b,"Bitte wähle zuerst hier das Datum der Unterrichtssitzung aus – danach lässt sich die PDF erstellen.");
+    try{ b.scrollIntoView({block:"center",behavior:"smooth"}); }catch(err){ b.scrollIntoView(); }
+    const inp=b.querySelector(".ltb-date input"); if(inp) setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(err){} },250);
+  },true);
 })();
 </script>
 </body>
