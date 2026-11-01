@@ -3,60 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Content-Security-Policy (GitHub Pages setzt keine Header): Die Seite lädt nichts nach; nur die Rechtschreibprüfung schickt –
+     auf Klick – den Text einer Antwort an LanguageTool. frame-ancestors lässt sich per <meta> nicht setzen. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.languagetool.org; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'">
 <title>Lerntagebuch-Feiditor</title>
 <style>
+  /* ---------- Grundlagen (Tokens wie im Feiditor und im Feibeitsblatt) ---------- */
   :root{
     --paper:#f7f4ec; --paper2:#fffdf8; --ink:#221f1a; --muted:#6f675a;
     --line:#ddd5c4; --accent:#6b4f2c; --accent2:#8a6a3c; --shadow:rgba(40,30,15,.10);
+    --red:#b3261e; --green:#1f6b2a; --soft:#efe9dd;
+    --orange:#c96a00; --orange-bg:#fff1de; --orange-cur:#ffd9a6; --orange-ink:#8a4500;   /* Ablauf-Kasten */
     --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
     --sans:"Avenir Next",Avenir,"Segoe UI","Helvetica Neue",system-ui,sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
+  html,body{min-height:100%}
   body{
     margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);
     -webkit-font-smoothing:antialiased; line-height:1.5;
+    display:flex; flex-direction:column; min-height:100vh; min-height:100dvh;
   }
-  .screen{display:none; min-height:100vh}
-  .screen.active{display:block}
+  /* Bildschirme dieser Seite (eigene Klasse .view – .screen gehört zur verborgenen Feiditor-Engine) */
+  .view{display:none}
+  .view.active{display:block; flex:1 0 auto}
+  a{color:var(--accent)}
+  button{font-family:inherit}
+  .hidden{display:none !important}
+  .sr-only{position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+  #feiditor-engine-dom{display:none !important}
 
-  /* ---------- Start ---------- */
-  #screen-start{display:none; padding:0}
-  #screen-start.active{display:block}
-  .start-wrap{max-width:680px; margin:0 auto; padding:48px 20px 90px}
+  /* ---------- Karten (Start, Abschluss) ---------- */
+  .start-wrap{max-width:680px; margin:0 auto; padding:48px 20px 40px}
   .card{
     width:100%; max-width:440px; margin:0 auto; background:var(--paper2);
     border:1px solid var(--line); border-radius:14px; padding:40px 36px;
     box-shadow:0 18px 50px -28px var(--shadow);
   }
   .brand{font-family:var(--serif); font-size:13px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); margin:0 0 6px}
-  .card h1{font-family:var(--serif); font-weight:600; font-size:30px; margin:0 0 4px; letter-spacing:.01em}
+  .card h1{font-family:var(--serif); font-weight:600; font-size:30px; margin:0 0 4px; letter-spacing:.01em; line-height:1.25}
   .card p.sub{color:var(--muted); margin:0 0 26px; font-size:14.5px}
   label{display:block; font-size:12.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:0 0 6px}
   .field{margin-bottom:18px}
-  input[type=text]{
+  .fhint{font-size:12.5px; color:var(--muted); margin:5px 0 0; line-height:1.45}
+  input[type=text],input[type=date]{
     width:100%; font-family:var(--serif); font-size:18px; color:var(--ink);
     background:var(--paper); border:1px solid var(--line); border-radius:9px;
     padding:11px 13px; outline:none; transition:border-color .15s, box-shadow .15s;
   }
-  input[type=text]:focus{border-color:var(--accent2); box-shadow:0 0 0 3px rgba(138,106,60,.16)}
+  input::placeholder{color:#756c60}
+  input:focus{border-color:var(--accent2); box-shadow:0 0 0 3px rgba(138,106,60,.16)}
+  input.invalid{border-color:var(--red); box-shadow:0 0 0 3px rgba(179,38,30,.14)}
+
   .btn{
-    font-family:var(--sans); font-size:15px; font-weight:600; letter-spacing:.01em;
-    color:var(--paper2); background:var(--ink); border:1px solid var(--ink);
+    display:inline-block; font-family:var(--sans); font-size:15px; font-weight:600; letter-spacing:.01em; line-height:1.3;
+    color:var(--paper2); background:var(--ink); border:1px solid var(--ink); text-align:center; text-decoration:none;
     border-radius:9px; padding:12px 18px; cursor:pointer; transition:transform .06s, background .15s;
   }
   .btn:hover{background:#332e25}
   .btn:active{transform:translateY(1px)}
-  .btn.block{width:100%; margin-top:6px}
+  .btn.block{display:block; width:100%; margin-top:6px}
   .btn.ghost{background:transparent; color:var(--ink); border-color:var(--line)}
   .btn.ghost:hover{background:var(--paper)}
-  .err{color:#b3261e; font-size:13.5px; min-height:18px; margin:2px 0 0}
-  /* Startseite: Auswahl, was zutrifft (normal / Escape-Room / Zwischenstand) */
-  .choice-btn{white-space:normal; text-align:left; line-height:1.35; padding:13px 16px; margin-top:10px}
-  .choice-btn:first-of-type{margin-top:0}
-  #choice .sub{margin-bottom:16px}
-  .card .backlink{margin:18px 0 0}
-  /* Infokasten unter der Anmeldekarte (optional, z. B. Lerntagebuch-Feiditor) */
+  .btn.small{font-size:13px; padding:8px 12px; border-radius:8px}
+  .btn.danger{background:var(--red); border-color:var(--red); color:#fff}
+  .btn.danger:hover{background:#8f1e17}
+  .btn:disabled{opacity:.55; cursor:default; transform:none}
+  .btn:disabled:hover{background:var(--ink)}
+  .btn.ghost:disabled:hover{background:transparent}
+  .btn[aria-disabled="true"]{opacity:.55; transform:none}
+  .btn[aria-disabled="true"]:hover{background:var(--ink)}
+  .err{color:var(--red); font-size:13.5px; margin:2px 0 0}
+  .err:empty{display:none}
+  .backlink{
+    display:inline-block; margin:18px 0 0; padding:0; border:0; background:none; cursor:pointer;
+    color:var(--muted); font-family:var(--sans); font-size:13px; text-decoration:none;
+  }
+  .backlink:hover{color:var(--accent)}
+  .linkbtn{
+    background:none; border:0; padding:0; cursor:pointer; font-family:var(--sans); font-size:12.5px;
+    color:var(--muted); text-decoration:underline; text-underline-offset:2px;
+  }
+  .linkbtn:hover{color:var(--red)}
+  .linkbtn:disabled{opacity:.55; cursor:default}
+  .status{font-size:13.5px; margin:10px 0 0; color:var(--muted)}
+  .status:empty{display:none}
+  .status.ok{color:var(--green)}
+  .status.bad{color:var(--red)}
+  .spinner{display:inline-block; width:12px; height:12px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-2px; margin-right:7px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pdfrow{margin:14px 0 0; text-align:center}
+  .pdfrow .fhint{margin:6px 0 0}
+  .startpriv{font-size:12px; color:var(--muted); line-height:1.5; margin:18px 0 0}
+  .notebox{margin:0 0 16px; padding:12px 16px; background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; font-size:14px; line-height:1.5}
+  .notebox:empty{display:none}
+  .done-check{width:104px; height:104px; margin:6px auto 2px; display:block}
+  .done-check circle{fill:var(--green)}
+  .done-check path{fill:none; stroke:#fff; stroke-width:7; stroke-linecap:round; stroke-linejoin:round}
+  .donefile{font-family:var(--serif); font-size:15px; margin:0 0 18px; overflow-wrap:anywhere}
+  .card p.sub.tight{margin-bottom:6px}
+  #lb-done-h:focus{outline:none}   /* nur per Skript fokussiert (Bildschirmwechsel), nie per Tab */
+  .donenote{font-family:var(--sans); font-size:12.5px; line-height:1.45; color:var(--muted); margin:8px 0 18px; text-align:left}
+  .moodle-hint{
+    margin:0 0 18px; padding:14px 20px; background:#fdecea; border:1.5px solid #f5b8b1; border-radius:8px;
+    color:#a72020; font-family:var(--sans); font-size:14.5px; font-weight:600; text-align:center; line-height:1.5;
+  }
+  /* Infokasten unter der Startkarte */
   .infobox{
     margin:28px auto 0; max-width:680px; background:#f4ecd9;
     border:1px solid #e4d8bd; border-left:4px solid var(--accent); border-radius:12px;
@@ -69,201 +121,275 @@
   .infobox li{margin:0 0 5px}
   .infobox li:last-child{margin-bottom:0}
 
-  /* ---------- Editor ---------- */
-  #screen-editor{display:none; flex-direction:column; height:100vh}
-  #screen-editor.active{display:flex}
+  /* ---------- Schreibfläche (Topbar, Papier, Aufgaben) ----------
+     Im Schreibmodus füllt der Bildschirm genau die Fensterhöhe; nur .paperwrap scrollt, die Fußzeile steht darunter. */
+  body.writing{height:100vh; height:100dvh; overflow:hidden}
+  #lb-editor{display:none; flex-direction:column}
+  #lb-editor.active{display:flex; flex:1 1 auto; min-height:0}
   .topbar{
-    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    display:flex; align-items:center; justify-content:space-between; gap:6px 16px; flex-wrap:wrap;
     padding:13px 22px; border-bottom:1px solid var(--line); background:var(--paper2);
   }
-  .who{font-family:var(--serif); font-size:16px}
+  .who{font-family:var(--serif); font-size:16px; overflow-wrap:anywhere}
   .who .lbl{font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-right:8px}
+  .topbar .right{display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:0; max-width:100%}
+  .stitle{font-family:var(--serif); font-size:15px; font-weight:600}
   .count{font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums}
-  .topbar .right{display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:flex-end}
-  .btn.small{font-size:13px; padding:8px 12px; border-radius:8px}
-  .paperwrap{flex:1; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:34px 20px 170px}
-  /* Roter Hinweis über dem Texteditor (nur ohne vorbefüllte Aufgaben) */
-  .taskhint{
-    width:100%; max-width:760px; margin:0 0 14px; color:#b3261e; font-family:var(--sans);
-    font-size:14.5px; font-weight:700; line-height:1.45; text-align:center;
+  .count:empty{display:none}
+  .count.ok{color:var(--green)}
+  .topbar .linkbtn{margin-top:2px}
+  .paperwrap{
+    flex:1 1 auto; min-height:0; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:34px 20px 60px;
+    -webkit-overflow-scrolling:touch; overscroll-behavior:contain; scrollbar-gutter:stable;
   }
   .sheet{
     position:relative; width:100%; max-width:760px; background:var(--paper2); border:1px solid var(--line);
-    border-radius:6px; box-shadow:0 24px 60px -40px var(--shadow); padding:56px 60px 110px;
+    border-radius:6px; box-shadow:0 24px 60px -40px var(--shadow); padding:56px 60px 64px;
+    font-family:var(--serif); font-size:18.5px; line-height:1.78; color:var(--ink); flex-shrink:0;
   }
-  #editor{
-    width:100%; min-height:60vh; border:0; outline:0; background:transparent;
-    font-family:var(--serif); font-size:18.5px; line-height:1.78; color:var(--ink);
-    white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere;
+  .sheet-head{margin:0 0 1.78em}
+  .sheet-title{font-family:var(--serif); font-weight:700; font-size:1.45em; line-height:1.3; margin:0}
+  .sheet-meta{font-family:var(--sans); font-size:13px; color:var(--muted); margin:6px 0 0; line-height:1.5}
+  .sheet-head .notebox{margin:12px 0 0; font-family:var(--sans)}
+  /* Ablauf-Kasten „So gehst du vor“: der aktuelle Schritt fett, mit Balken und aria-current="step" */
+  .steps{margin:0 0 1.78em; padding:12px 16px 12px 14px; background:var(--orange-bg); border:1.5px solid var(--orange); border-radius:8px;
+    font-family:var(--sans); font-size:14.5px; line-height:1.45; color:var(--ink)}
+  .steps-h{margin:0 0 4px; font-family:var(--sans); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--orange-ink)}
+  .steps-list{margin:0; padding-left:1.6em}
+  .steps-list li{margin:1px 0; padding:1px 6px; border-radius:5px}
+  .steps-list li::marker{font-weight:700; color:var(--orange-ink)}
+  .steps-list li.cur{font-weight:700; background:var(--orange-cur); box-shadow:inset 3px 0 0 var(--orange)}
+  .step-note{color:var(--muted); font-weight:400}
+  .steps-list li.cur .step-note{color:var(--ink)}
+  /* Aufgaben: zwischen Antwortblock und nächster Aufgabenstellung genau eine Leerzeile */
+  .task{margin:0}
+  .task + .task{margin-top:1.78em}
+  .task-q{font-weight:700; padding:2px 0 0; margin:0 0 6px}
+  .task-label{
+    display:block; font-family:var(--sans); font-size:12px; font-weight:700; line-height:1.5;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 2px;
   }
-  #editor:focus{outline:0}
-  #editor .heading{font-weight:700; font-size:2em; line-height:1.25; margin:.1em 0}
-  #editor.empty::before{content:attr(data-placeholder); color:#b9b0a0; pointer-events:none}
-
-  /* Aufgabenblöcke: fest (nicht editierbar), fett; ein Klick zeigt das rote „x" zum Entfernen.
-     Der obere Abstand lässt Platz für den Button „Neuen Aufgabentext eintragen" unter der Antwortzeile davor. */
-  #editor .task{
-    position:relative; font-weight:700; margin:44px 0 6px; padding:2px 34px 2px 0;
-    border-radius:4px; cursor:default;
+  .task-text{white-space:pre-wrap; overflow-wrap:anywhere}
+  textarea.answer{
+    display:block; width:100%; min-height:calc(3 * 1.78em + 22px); resize:none; overflow:hidden; margin:0;
+    font-family:var(--serif); font-size:18.5px; line-height:1.78; font-weight:400; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:10px 13px;
+    outline:none; transition:border-color .15s, box-shadow .15s; overflow-wrap:break-word;
   }
-  #editor .task:first-child{margin-top:0}
-  #editor .task.selected{background:#fdecea; box-shadow:0 0 0 1px #f5b8b1}
-  #editor .task .task-label{
-    display:inline-block; font-family:var(--sans); font-size:12px; font-weight:700;
-    letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:2px;
-  }
-  #editor .task .task-x{
-    display:none; position:absolute; right:4px; top:4px; width:22px; height:22px; padding:0;
-    border:1.5px solid #b3261e; border-radius:50%; background:#fff; color:#b3261e;
-    font:700 15px/19px var(--sans); text-align:center; cursor:pointer;
-  }
-  #editor .task.selected .task-x{display:block}
-  #editor .task .task-x:hover{background:#b3261e; color:#fff}
-
-  /* Lerntagebuch: Kalenderfeld für das Datum der Unterrichtssitzung im Block von Frage 1 */
-  #editor .task .ltb-date{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:8px 0 4px; font-weight:400}
-  #editor .task .ltb-date label{font-size:14px; color:var(--muted); font-weight:600}
-  #editor .task .ltb-date input{
-    font:500 15px var(--sans); color:var(--ink); padding:5px 8px; border:1px solid var(--line); border-radius:8px;
-    background:var(--paper2); cursor:pointer;
-  }
-  #editor .task .ltb-date input:focus{outline:none; border-color:var(--accent2); box-shadow:0 0 0 3px rgba(138,106,60,.16)}
-  #editor .task .ltb-date.missing input{border-color:#b3261e; box-shadow:0 0 0 3px rgba(179,38,30,.14)}
-  #editor .task .ltb-date-err{flex-basis:100%; color:#b3261e; font-size:13.5px; font-weight:600}
-  #editor .task .ltb-date-err:empty{display:none}
-  #editor .task .ltb-date-out{display:none}
-  #editor .task .ltb-rest{white-space:pre-line}
-  /* Im Lerntagebuch gibt es nur die fünf festen Fragen: Text in selbst eingefügten Aufgabenblöcken würde als vorgegebener
-     Aufgabentext (schwarz, nicht gewertet) zählen – deshalb hier kein Button „Neuen Aufgabentext eintragen“. */
-  #taskbtn, #taskform{display:none !important}
-
-  /* Button „Neuen Aufgabentext eintragen" – schwebt immer eine Zeile unter der aktuellen Eingabezeile */
-  .taskbtn{
-    position:absolute; left:60px; top:56px; z-index:3; font-family:var(--sans); font-size:12.5px; font-weight:600;
-    letter-spacing:.01em; color:#b3261e; background:var(--paper2); border:1px dashed #d9a39c; border-radius:8px;
-    padding:5px 11px; cursor:pointer; white-space:nowrap; transition:background .12s;
-  }
-  .taskbtn:hover{background:#fdecea}
-  .taskbtn:active{transform:translateY(1px)}
-  .taskform{
-    position:absolute; left:60px; right:60px; top:56px; z-index:4; background:var(--paper2);
-    border:1.5px solid #b3261e; border-radius:10px; padding:14px 16px; box-shadow:0 18px 40px -22px var(--shadow);
-  }
-  .taskform label{color:#b3261e}
-  .taskform textarea{
-    display:block; width:100%; min-height:74px; resize:vertical; font-family:var(--serif); font-size:17px; line-height:1.5;
-    color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:9px 12px; outline:none;
-  }
-  .taskform textarea:focus{border-color:#b3261e; box-shadow:0 0 0 3px rgba(179,38,30,.14)}
-  .taskform .row{display:flex; gap:10px; justify-content:flex-end; margin-top:10px}
-  .taskform .btn{padding:9px 14px; font-size:14px}
-
-  /* ---------- Formatierungsleiste (Word-artig) ---------- */
-  .formatbar{
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-    padding:9px 22px; border-bottom:1px solid var(--line); background:var(--paper2);
-  }
-  .fbtn{
-    font-family:var(--sans); font-size:15px; min-width:38px; height:34px; padding:0 11px;
-    color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:8px;
-    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
-    transition:background .12s, border-color .12s, color .12s; user-select:none;
-  }
-  .fbtn:hover{background:#efe9dd}
-  .fbtn:active{transform:translateY(1px)}
-  .fbtn.active{background:var(--accent); color:var(--paper2); border-color:var(--accent)}
-  .fbtn.wide{font-size:13.5px; letter-spacing:.02em}
-  .fbtn .b{font-weight:800}
-  .fbtn .i{font-style:italic}
-  .fbtn .u{text-decoration:underline}
-  .fsep{width:1px; height:22px; background:var(--line); margin:0 3px}
-  .actionbar{
-    position:fixed; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; gap:12px;
-    padding:16px 16px 46px; background:linear-gradient(to top, var(--paper) 60%, rgba(247,244,236,0));
-  }
-  .dl-panel{display:flex; flex-direction:column; align-items:center; gap:9px}
-  .dl-hint{font-size:12.5px; color:var(--muted); text-align:center}
-  .dl-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
-  .dl-link{text-decoration:none; font-size:13.5px; padding:9px 14px}
+  textarea.answer:focus{border-color:var(--accent2); box-shadow:0 0 0 3px rgba(138,106,60,.16)}
+  textarea.answer.invalid{border-color:var(--red); box-shadow:0 0 0 3px rgba(179,38,30,.14)}
+  textarea.answer::placeholder{color:#b9b0a0}
+  /* Unsichtbarer Zwilling zum Messen der Texthöhe (mitwachsende Felder) */
+  textarea.measure{position:absolute !important; top:0; left:0; visibility:hidden !important; height:0 !important; min-height:0 !important; pointer-events:none; transition:none}
+  /* Datum der Unterrichtssitzung (Aufgabe 1) */
+  .datebox{display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; font-family:var(--sans); font-weight:400}
+  .datebox label{margin:0}
+  .datebox input[type=date]{width:auto; min-width:12em; font-family:var(--sans); font-size:16px; padding:8px 11px; cursor:pointer}
+  .date-out{font-family:var(--serif); font-size:17px; color:var(--ink)}
+  .date-out:empty{display:none}
+  .paste-err{font-family:var(--sans); color:var(--red); font-size:13.5px; font-weight:600; line-height:1.45; margin:6px 0 0}
+  .paste-err:empty{display:none}
+  .charcount{font-family:var(--sans); font-size:12px; color:var(--muted); text-align:right; margin:4px 0 0; line-height:1.4}
+  .charcount.bad{color:var(--red); font-weight:600}
+  .charcount:empty{display:none}
+  .checkrow{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin:8px 0 0; font-family:var(--sans); line-height:1.4}
+  .ltstat{font-size:13px; color:var(--muted)}
+  .ltstat.bad{color:var(--red)}
+  .ltstat:empty{display:none}
+  .lt-off{font-style:italic}
+  /* Ausgabe der Rechtschreibprüfung – klein unter dem Feld */
+  .lt-out{margin:10px 0 0; padding:10px 14px 9px; background:var(--paper); border:1px solid var(--line); border-left:3px solid var(--accent2); border-radius:8px}
+  .lt-head{font-family:var(--sans); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; line-height:1.4}
+  .lt-text{font-family:var(--serif); font-size:14.5px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; margin:0}
+  .lt-text mark{background:#f3e0ae; color:inherit; border-radius:3px; padding:0 1px; box-shadow:0 0 0 1px #e6cd88}
+  .lt-text .lt-q{text-decoration:underline wavy var(--red); text-decoration-thickness:1px; text-underline-offset:3px}
+  .lt-legend,.lt-note{font-family:var(--sans); font-size:12px; color:var(--muted); line-height:1.5; margin:6px 0 0}
+  .lt-note a{color:var(--muted); text-decoration:underline; text-underline-offset:2px}
+  .lt-note a:hover{color:var(--accent)}
+  .lt-stale{font-family:var(--sans); font-size:12px; font-weight:600; color:var(--accent); margin:6px 0 0; line-height:1.45}
+  .lt-out.stale{border-left-style:dashed}
+  .lt-out.stale .lt-text,.lt-out.stale .lt-legend{opacity:.7}
+  .lt-changes{margin:4px 0 0; padding-left:18px; font-family:var(--sans); font-size:12.5px; color:var(--muted); line-height:1.5}
+  /* Abschluss am Ende des Blattes */
+  .finish{margin:1.78em 0 0; padding:1.4em 0 0; border-top:1px solid var(--line); font-family:var(--sans); font-size:14.5px; line-height:1.5}
+  .finish .task-label{margin-bottom:6px}
+  .fin-text{margin:0 0 10px; color:var(--ink)}
+  .words{font-family:var(--sans); font-size:14px; font-weight:600; margin:0 0 4px; font-variant-numeric:tabular-nums}
+  .words.ok{color:var(--green)}
+  .finrow{margin:16px 0 0}
+  .finrow .fhint{margin-top:8px}
+  .privacy{font-size:12px; color:var(--muted); line-height:1.5; margin:14px 0 0; max-width:640px}
+  .privacy a{color:var(--muted)}
   .copyright{
-    position:fixed; left:0; right:0; bottom:13px; text-align:center;
-    font-size:11px; letter-spacing:.05em; color:var(--muted); pointer-events:none; z-index:6;
+    flex:0 0 auto; text-align:center; padding:6px 16px 13px;
+    font-size:11px; letter-spacing:.05em; color:var(--muted); pointer-events:none;
   }
-  .copyright a{pointer-events:auto; color:var(--muted); text-decoration:underline; text-underline-offset:2px}
+  body.writing .copyright{padding:5px 16px 7px; border-top:1px solid var(--line); background:var(--paper)}
+  .copyright a{pointer-events:auto; color:var(--muted); display:inline-block; padding:4px 2px; margin:-4px 0}
   .copyright a:hover{color:var(--accent)}
 
-  /* ---------- Lehrkraft ---------- */
-  #screen-teacher{display:none; place-items:start center; padding:40px 20px 80px}
-  #screen-teacher.active{display:grid}
-  .panel{width:100%; max-width:920px}
-  .panel h1{font-family:var(--serif); font-weight:600; font-size:26px; margin:0 0 4px}
-  .panel .sub{color:var(--muted); margin:0 0 22px; font-size:14.5px}
-  .drop{
-    background:var(--paper2); border:1.5px dashed var(--line); border-radius:12px;
-    padding:26px; text-align:center; color:var(--muted); font-size:14.5px;
-  }
-  .drop strong{color:var(--ink)}
-  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:14px}
-  input[type=password]{
-    font-family:var(--serif); font-size:18px; letter-spacing:.12em; width:180px;
-    background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:10px 12px; outline:none;
-  }
-  input[type=password]:focus{border-color:var(--accent2); box-shadow:0 0 0 3px rgba(138,106,60,.16)}
-  .hidden{display:none !important}
-  .backlink{display:inline-block; margin-bottom:18px; color:var(--muted); font-size:13px; text-decoration:none}
-  .backlink:hover{color:var(--accent)}
+  /* ---------- Bestätigungsdialog ---------- */
+  .modal{position:fixed; inset:0; background:rgba(34,31,26,.45); display:none; z-index:30; overflow:auto; padding:30px 16px}
+  .modal.open{display:grid; place-items:center}
+  .modal .box{width:100%; max-width:480px; background:var(--paper2); border:1px solid var(--line); border-radius:14px; padding:26px 28px 24px; box-shadow:0 30px 80px -30px rgba(0,0,0,.45)}
+  .modal h2{font-family:var(--serif); font-weight:600; font-size:22px; margin:0 0 8px; line-height:1.3}
+  .modal p{margin:0 0 20px; font-size:14.5px; line-height:1.55; white-space:pre-line}
+  .modal .row{display:flex; gap:12px; flex-wrap:wrap; justify-content:flex-end}
 
-  /* analysis */
-  .legend{display:flex; gap:18px; flex-wrap:wrap; margin:20px 0 14px; font-size:13.5px; color:var(--muted)}
-  .legend span{display:inline-flex; align-items:center; gap:7px}
-  .sw{width:13px; height:13px; border-radius:3px; display:inline-block}
-  .stat{font-size:13px; color:var(--muted); margin:0 0 16px; font-variant-numeric:tabular-nums}
-  .analysis{
-    background:var(--paper2); border:1px solid var(--line); border-radius:10px;
-    padding:30px 34px; font-family:var(--serif); font-size:17.5px; line-height:1.85;
-    white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere;
+  /* ---------- Fokus, Bewegung, kleine Bildschirme ---------- */
+  .btn:focus-visible,.linkbtn:focus-visible,.backlink:focus-visible,a:focus-visible{outline:2px solid var(--accent2); outline-offset:2px}
+  @media (prefers-reduced-motion: reduce){ .btn,.spinner,textarea,input{transition:none; animation:none} }
+  @media (max-width:640px){
+    .start-wrap{padding:28px 16px 32px}
+    .card{padding:30px 22px}
+    .card h1{font-size:27px}
+    .infobox{padding:20px 18px}
+    .topbar{padding:10px 16px}
+    .topbar .right{align-items:flex-start; text-align:left}
+    .paperwrap{padding:16px 10px 40px}
+    .sheet{padding:28px 18px 40px}
+    .steps{padding:10px 12px; font-size:14px}
   }
-  .nmeta{font-family:var(--sans); font-size:12.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:14px}
-  .redbadge{
-    display:inline-block; font-family:var(--sans); font-size:14px; font-weight:600; letter-spacing:.02em;
-    background:var(--paper2); border:1px solid var(--line); border-radius:9px; padding:8px 14px;
-    margin:0 0 6px; font-variant-numeric:tabular-nums;
-  }
-  .redbadge.high{color:#b3261e; border-color:#b3261e; font-weight:800}
-  .codefor{font-size:13.5px; color:var(--muted); margin:14px 0 0}
-
-  /* Tabellenansicht (Mehrfach-Upload) */
-  .batchsum{font-size:13px; color:var(--muted); margin:18px 0 10px; font-variant-numeric:tabular-nums}
-  .tablewrap{border:1px solid var(--line); border-radius:10px; overflow:auto; background:var(--paper2)}
-  table.batch{width:100%; border-collapse:collapse; font-size:15px}
-  table.batch th{
-    font-family:var(--sans); font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
-    font-weight:600; text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--paper);
-  }
-  table.batch td{padding:10px 14px; border-bottom:1px solid var(--line); font-family:var(--serif); font-variant-numeric:tabular-nums}
-  table.batch tr:last-child td{border-bottom:0}
-  table.batch tr.clickable{cursor:pointer}
-  table.batch tr.clickable:hover td, table.batch tr.selected td{background:#efe9dd}
-  table.batch th.pct, table.batch td.pct{text-align:right; white-space:nowrap}
-  table.batch td.pct.high{color:#b3261e; font-weight:800}
-  table.batch tr.errrow td{color:var(--muted); font-style:italic; font-family:var(--sans); font-size:13.5px}
-  .batchhint{font-size:12.5px; color:var(--muted); margin:10px 0 0}
-
-  /* Rote Felder (Escape-Room-Modus, identisch zum eingebetteten Feiditor) */
-  .moodle-hints{max-width:760px; margin:0 auto}
-  .moodle-hint{
-    max-width:760px; margin:14px auto 0; padding:14px 20px;
-    background:#fdecea; border:1.5px solid #f5b8b1; border-radius:8px;
-    color:#a72020; font-family:var(--sans); font-size:14.5px; font-weight:600;
-    text-align:center; line-height:1.5;
-    user-select:none;
-  }
-  /* Upload-Bereiche auf der Startseite (Überblick-PDF, Zwischenstand-PDF) */
-  .startsec .drop{padding:18px}
 </style>
 </head>
 <body>
+<noscript><p style="margin:20px; color:#b3261e; font-weight:600">Diese Seite benötigt JavaScript. Bitte aktiviere JavaScript im Browser.</p></noscript>
 
+<!-- ============ START: Angaben (wie im Feibeitsblatt, Einzelarbeit) ============ -->
+<section id="lb-start" class="view active" aria-labelledby="lb-start-h">
+  <div class="start-wrap">
+    <div class="card">
+      <p class="brand">Lerntagebuch-Feiditor</p>
+      <h1 id="lb-start-h">Deine Angaben</h1>
+      <p class="sub">Bitte trage deine Angaben ein. Danach öffnet sich der Schreibbereich mit den fünf Aufgaben deines Lerntagebuch-Eintrags.</p>
+      <p class="notebox" id="lb-start-note" role="status"></p>
+      <div class="field">
+        <label for="lb-vorname">Vorname</label>
+        <input type="text" id="lb-vorname" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+      </div>
+      <div class="field">
+        <label for="lb-nachname">Nachname</label>
+        <input type="text" id="lb-nachname" maxlength="60" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+      </div>
+      <div class="field">
+        <label for="lb-klasse">Klasse</label>
+        <input type="text" id="lb-klasse" maxlength="10" placeholder="z. B. 8b" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-describedby="lb-klasse-hint">
+        <p class="fhint" id="lb-klasse-hint">z. B. 8b oder E1. Name und Klasse stehen später oben in deiner PDF-Datei.</p>
+      </div>
+      <p class="err" id="lb-start-err" aria-live="polite"></p>
+      <button type="button" class="btn block" id="lb-start-btn">Schreibbereich öffnen</button>
+      <div class="pdfrow">
+        <button type="button" class="btn ghost small" id="lb-resume-btn" aria-describedby="lb-resume-hint">Zwischenstand-PDF hochladen</button>
+        <input type="file" id="lb-resume-file" class="sr-only" accept="application/pdf,.pdf" tabindex="-1" aria-hidden="true">
+        <p class="fhint" id="lb-resume-hint">Hast du deinen Zwischenstand als PDF-Datei gesichert, kannst du ihn hier hochladen und weiterarbeiten.</p>
+        <p class="err" id="lb-resume-err" aria-live="polite"></p>
+      </div>
+      <p class="startpriv" id="lb-start-privacy">Diese Seite schickt deine Angaben und Antworten an keinen Server und speichert sie nicht im Browser – sie stehen nur in der PDF-Datei, die du selbst herunterlädst. Nur wenn du die freiwillige Rechtschreibprüfung nutzt, geht der Text der jeweiligen Antwort an LanguageTool. Beim Schreiben hält diese Seite fest, wie dein Text entsteht (Tippzeiten); das steht verschlüsselt in deiner PDF-Datei. Mehr unter „Impressum &amp; Datenschutz“ ganz unten auf der Seite.</p>
+    </div>
+    <div class="infobox">
+      <h2 class="ib-title">Lerntagebuch (freiwillig)</h2>
+      <p>Manche Schüler/-innen sind zurückhaltend, passen trotzdem aufmerksam auf und entwickeln Fragen für den Unterricht, denen sie gedanklich auf den Grund gehen möchten, ohne diese unbedingt mit anderen zu teilen. Da diese Zurückhaltung für manche Schüler/-innen bei der mündlichen Bewertung ein extremer Nachteil werden kann, ist das Lerntagebuch ein Angebot, mit dem ein positiver Beitrag für die mündliche Leistung erbracht werden kann.</p>
+      <p>Das heißt nicht, dass die mündliche Leistung nun vollständig eingestellt werden kann. Es wird weiterhin Folgendes bewertet:</p>
+      <ul>
+        <li>Häufigkeit der Meldungen im Unterricht</li>
+        <li>Qualität der Meldungen im Unterricht</li>
+        <li>Störungen im Unterricht</li>
+        <li>Qualität der gestellten Fragen</li>
+        <li>Beitrag zum Unterrichtsgeschehen (bspw. Teilnahme an Methoden etc.)</li>
+      </ul>
+      <h3 class="ib-sub">Vorgaben für das Lerntagebuch:</h3>
+      <p>Pro Unterrichtssitzung werden in einem mind. 60 Wörter langen und in ganzen Sätzen formulierten Text (dem Tagebucheintrag) folgende Fragen beantwortet:</p>
+      <ul>
+        <li>Welche Stundenfrage wurde beantwortet?</li>
+        <li>Was habe ich heute Neues gelernt?</li>
+        <li>Habe ich zu dem Erlernten einen persönlichen Bezug finden können (inkl. Begründung)?</li>
+        <li>Welche Fragen habe ich dabei entwickelt, denen ich allein gerne nachgehen möchte?</li>
+      </ul>
+      <ul>
+        <li>Bei Krankheitsfällen wird der Tagebucheintrag zu der Sitzung, bei der man abwesend war, nachgeholt, sobald man wieder gesund ist. Als Grundlage dienen dazu die Unterlagen von Mitschülerinnen und Mitschülern und online veröffentlichtes Material.</li>
+        <li>Es ist jederzeit abgabebereit.</li>
+        <li>Es wird als PDF-Datei abgegeben.</li>
+      </ul>
+      <h3 class="ib-sub">Bewertung:</h3>
+      <p>Ein mindestens gutes Lerntagebuch kann in Fällen, in denen auffällige Zurückhaltung der einzige Grund für eine schwache mündl. Beteiligung ist, positiv bei der Bildung der mündlichen Note berücksichtigt werden (dazu muss hierfür mindestens eine gute oder sehr gute Leistung im Lerntagebuch vorliegen). Inwiefern ein kleiner Beitrag zur mündlichen Note damit gewährleistet ist, liegt im Ermessen der Lehrkraft. Es dient nicht als „Wiedergutmachung“ für Fehlverhalten, Faulheit oder Unaufmerksamkeit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCHREIBFLÄCHE ============ -->
+<section id="lb-editor" class="view" aria-label="Schreibbereich">
+  <div class="topbar">
+    <div class="who"><span class="lbl">Verfasser:in</span><span id="lb-who"></span></div>
+    <div class="right">
+      <div class="stitle">Lerntagebuch</div>
+      <div class="count" id="lb-save-state" role="status"></div>
+      <button type="button" class="linkbtn" id="lb-interim">Zwischenstand als PDF-Datei sichern</button>
+      <button type="button" class="linkbtn" id="lb-cancel">Abbrechen und neu beginnen</button>
+    </div>
+  </div>
+  <div class="paperwrap" id="lb-paperwrap">
+    <div class="sheet" id="lb-sheet">
+      <header class="sheet-head">
+        <h1 class="sheet-title" id="lb-sheet-title">Lerntagebuch-Eintrag</h1>
+        <p class="sheet-meta" id="lb-sheet-meta">5 Aufgaben · Wähle bei Aufgabe 1 das Datum und schreibe deine Antworten jeweils in das Feld unter der Aufgabe.</p>
+        <p class="notebox hidden" id="lb-ed-note" role="status"></p>
+      </header>
+      <section class="steps" id="lb-steps" aria-labelledby="lb-steps-h">
+        <h2 class="steps-h" id="lb-steps-h">So gehst du vor</h2>
+        <ol class="steps-list" id="lb-steps-list"></ol>
+      </section>
+      <div id="lb-tasks"></div>
+      <section class="finish" aria-labelledby="lb-fin-h">
+        <h2 class="task-label" id="lb-fin-h">Abschluss</h2>
+        <p class="fin-text">Wenn du alle Aufgaben beantwortet hast – zusammen mindestens 60 Wörter –, lade deine Lerntagebuch-PDF herunter und lade sie bei Moodle hoch.</p>
+        <p class="words" id="lb-words"></p>
+        <p class="privacy" id="lb-ed-privacy">Deine Antworten bleiben auf deinem Gerät, bis du die PDF-Datei selbst bei Moodle hochlädst; diese Seite speichert sie nicht im Browser. Die Rechtschreibprüfung (LanguageTool) ist freiwillig – dabei geht nur der Text der jeweiligen Antwort an LanguageTool. Beim Schreiben hält diese Seite fest, wie dein Text entsteht (Tippzeiten); das steht verschlüsselt in der PDF-Datei. Mehr unter „Impressum &amp; Datenschutz“ ganz unten auf der Seite.</p>
+        <div class="finrow">
+          <button type="button" class="btn" id="lb-final" aria-describedby="lb-final-hint">Lerntagebuch-PDF herunterladen</button>
+          <p class="fhint" id="lb-final-hint"></p>
+          <p class="status" id="lb-final-status" role="alert"></p>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FERTIG: PDF-Datei heruntergeladen ============ -->
+<section id="lb-done" class="view" aria-labelledby="lb-done-h">
+  <div class="start-wrap">
+    <div class="card">
+      <p class="brand">Lerntagebuch-Feiditor</p>
+      <svg class="done-check" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="31"/><path d="M18 33.5 L27.5 43 L46 22"/></svg>
+      <h1 id="lb-done-h" tabindex="-1">Deine Lerntagebuch-PDF ist fertig</h1>
+      <p class="sub tight">Die Datei wurde heruntergeladen:</p>
+      <p class="donefile" id="lb-done-file"></p>
+      <p class="moodle-hint">Lade genau diese eine Datei bei Moodle hoch.</p>
+      <a class="btn block" id="lb-done-again" href="#" aria-describedby="lb-done-again-note">Dieselbe Datei noch einmal herunterladen</a>
+      <p class="donenote" id="lb-done-again-note">Falls der Download nicht gestartet ist oder du die Datei nicht findest. Es ist genau dieselbe Datei.</p>
+      <button type="button" class="btn ghost block" id="lb-done-back" aria-describedby="lb-done-back-note">Zurück zur Bearbeitung</button>
+      <p class="donenote" id="lb-done-back-note">Änderst du danach noch etwas, entsteht beim nächsten Herunterladen eine neue Datei – lade dann nur die neue bei Moodle hoch.</p>
+      <button type="button" class="btn ghost block" id="lb-done-new">Neuen Lerntagebuch-Eintrag beginnen</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Bestätigungsdialog ============ -->
+<div class="modal" id="lb-dlg" role="dialog" aria-modal="true" aria-labelledby="lb-dlg-title" aria-describedby="lb-dlg-text">
+  <div class="box">
+    <h2 id="lb-dlg-title"></h2>
+    <p id="lb-dlg-text"></p>
+    <div class="row">
+      <button type="button" class="btn ghost" id="lb-dlg-cancel">Abbrechen</button>
+      <button type="button" class="btn" id="lb-dlg-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Verborgene Bedienelemente der gemeinsamen Feiditor-Engine ============
+     Die Engine (das große Skript unten, byte-identisch mit dem normalen Feiditor und den Escape-Rooms) spricht diese Elemente
+     beim Laden an und bricht ohne sie ab. Sie sind hier nie sichtbar und nie bedienbar (hidden, inert); das Lerntagebuch nutzt
+     von der Engine nur die Funktionen für die Hintergrunddaten, die Verschlüsselung und die PDF-Datei (Skript ganz unten). -->
+<div id="feiditor-engine-dom" hidden inert aria-hidden="true">
 <!-- ============ START ============ -->
 <section id="screen-start" class="screen active">
   <div class="start-wrap">
@@ -315,33 +441,6 @@
       </div>
 
       <a href="#" class="backlink hidden" id="back-choice">← zurück zur Auswahl</a>
-    </div>
-    <div class="infobox">
-      <h2 class="ib-title">Lerntagebuch (freiwillig)</h2>
-      <p>Manche Schüler/-innen sind zurückhaltend, passen trotzdem aufmerksam auf und entwickeln Fragen für den Unterricht, denen sie gedanklich auf den Grund gehen möchten, ohne diese unbedingt mit anderen zu teilen. Da diese Zurückhaltung für manche Schüler/-innen bei der mündlichen Bewertung ein extremer Nachteil werden kann, ist das Lerntagebuch ein Angebot, mit dem ein positiver Beitrag für die mündliche Leistung erbracht werden kann.</p>
-      <p>Das heißt nicht, dass die mündliche Leistung nun vollständig eingestellt werden kann. Es wird weiterhin Folgendes bewertet:</p>
-      <ul>
-        <li>Häufigkeit der Meldungen im Unterricht</li>
-        <li>Qualität der Meldungen im Unterricht</li>
-        <li>Störungen im Unterricht</li>
-        <li>Qualität der gestellten Fragen</li>
-        <li>Beitrag zum Unterrichtsgeschehen (bspw. Teilnahme an Methoden etc.)</li>
-      </ul>
-      <h3 class="ib-sub">Vorgaben für das Lerntagebuch:</h3>
-      <p>Pro Unterrichtssitzung werden in einem mind. 60 Wörter langen und in ganzen Sätzen formulierten Text (dem Tagebucheintrag) folgende Fragen beantwortet:</p>
-      <ul>
-        <li>Welche Stundenfrage wurde beantwortet?</li>
-        <li>Was habe ich heute Neues gelernt?</li>
-        <li>Habe ich zu dem Erlernten einen persönlichen Bezug finden können (inkl. Begründung)?</li>
-        <li>Welche Fragen habe ich dabei entwickelt, denen ich allein gerne nachgehen möchte?</li>
-      </ul>
-      <ul>
-        <li>Bei Krankheitsfällen wird der Tagebucheintrag zu der Sitzung, bei der man abwesend war, nachgeholt, sobald man wieder gesund ist. Als Grundlage dienen dazu die Unterlagen von Mitschülerinnen und Mitschülern und online veröffentlichtes Material.</li>
-        <li>Es ist jederzeit abgabebereit.</li>
-        <li>Es wird als PDF-Datei abgegeben.</li>
-      </ul>
-      <h3 class="ib-sub">Bewertung:</h3>
-      <p>Ein mindestens gutes Lerntagebuch kann in Fällen, in denen auffällige Zurückhaltung der einzige Grund für eine schwache mündl. Beteiligung ist, positiv bei der Bildung der mündlichen Note berücksichtigt werden (dazu muss hierfür mindestens eine gute oder sehr gute Leistung im Lerntagebuch vorliegen). Inwiefern ein kleiner Beitrag zur mündlichen Note damit gewährleistet ist, liegt im Ermessen der Lehrkraft. Es dient nicht als „Wiedergutmachung“ für Fehlverhalten, Faulheit oder Unaufmerksamkeit.</p>
     </div>
   </div>
 </section>
@@ -413,16 +512,13 @@
     <div id="result"></div>
   </div>
 </section>
+</div>
 
-<!-- Die Auswertung für Lehrkräfte läuft über „Check des Feind(t)es“ (check.janrickmer.de); im Lerntagebuch-Feiditor gibt es
-     deshalb keinen Lehrkraft-Zugang mehr. Das leere, verborgene Element bleibt stehen, weil die gemeinsame Feiditor-Engine
-     (identisch mit dem normalen Feiditor und den Escape-Rooms) es beim Laden anspricht. -->
-<div id="pagefoot" class="copyright">Copyright Jan-Rickmer Feindt · <a href="impressum.html" target="_blank" rel="noopener">Impressum &amp; Datenschutz</a><a href="#" id="foot-teacher" hidden aria-hidden="true" tabindex="-1"></a></div>
+<div id="pagefoot" class="copyright">Copyright Jan-Rickmer Feindt · <a href="impressum.html" target="_blank" rel="noopener">Impressum &amp; Datenschutz<span class="sr-only"> (öffnet in neuem Tab)</span></a><a href="#" id="foot-teacher" hidden aria-hidden="true" tabindex="-1"></a></div>
 
-<!-- Lerntagebuch-Konfiguration: die fünf Fragen sind als feste Aufgabenblöcke vorbefüllt (schwarz in der
-     Lehrkraft-Auswertung, nicht gewertet), keine Escape-Room-Option auf der Startseite, eigene Beschriftung der
-     ersten Auswahl-Schaltfläche, eigener PDF-Dateiname. Die Engine darunter ist identisch mit dem normalen
-     Feiditor (feiditor.janrickmer.de); das Kalenderfeld für das Datum bei Frage 1 ergänzt ein eigenes Skript am Ende. -->
+<!-- Lerntagebuch-Konfiguration für die gemeinsame Feiditor-Engine (vor der Engine): die fünf festen Fragen (CFG.prefill – sie sind
+     die fünf Aufgaben und stehen wörtlich so in den Hintergrunddaten; „Check des Feind(t)es“ erkennt Lerntagebuch-Einträge daran)
+     und der Dateiname der fertigen PDF (CFG.pdfName). Die übrigen Einträge betreffen nur die verborgene Oberfläche der Engine. -->
 <script>
 window.FEIDITOR_CONFIG={
   prefill:[
@@ -1881,124 +1977,878 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
 </script>
 <script>
 /* ====================================================================== *
- *  Lerntagebuch: Datum der Unterrichtssitzung (Frage 1) per Kalenderfeld  *
- *  statt Eintippen. Das gewählte Datum steht als zweite Zeile im festen   *
- *  Aufgabenblock von Frage 1 („Dienstag, 29.09.2026“) – vorgegebener      *
- *  System-Text wie die Frage selbst: nicht eintippbar, nicht gewertet,    *
- *  in der PDF sichtbar und für „Check des Feind(t)es“ auslesbar. Das      *
- *  Feld selbst (data-noser) wird nie mit serialisiert. Die fertige PDF    *
- *  lässt sich erst erzeugen, wenn ein Datum gewählt ist; Zwischenstände   *
- *  jederzeit. Die gemeinsame Feiditor-Engine bleibt unverändert.          *
+ *  Lerntagebuch-Feiditor: Oberfläche wie ein Feibeitsblatt               *
+ *  (Angaben → fünf Aufgaben → Lerntagebuch-PDF für Moodle).              *
+ *  Die gemeinsame Feiditor-Engine oben bleibt byte-identisch; dieses     *
+ *  Skript nutzt von ihr nur buildPayload, computeStats (darin), _kf,     *
+ *  aesEncrypt, buildPdf, pdfMarker, autoDecrypt, readAsBinaryStr,        *
+ *  downloadBlob und die Dateinamen (CFG.pdfName, interimPdfName). So     *
+ *  entstehen genau die Hintergrunddaten (%TRACKDATA), die „Check des     *
+ *  Feind(t)es“ liest: dieselbe Blockstruktur wie im bisherigen           *
+ *  Lerntagebuch (je Frage ein Aufgabenblock als Systemtext, die          *
+ *  Datumszeile unter Frage 1, darunter die Antwortzeilen).               *
+ *  Kein Server, kein Speichern im Browser; einzige Verbindung nach       *
+ *  außen: LanguageTool, nur auf Klick.                                   *
  * ====================================================================== */
-(function(){
-  const Q1=String((Array.isArray(CFG.prefill)&&CFG.prefill[0])||"").trim();
-  if(!Q1) return;
-  const WD=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
-  const p2=n=>String(n).padStart(2,"0");
-  function todayIso(){ const d=new Date(); return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()); }
-  function isoValid(iso){
-    const mm=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||"")); if(!mm) return false;
-    const y=+mm[1], mo=+mm[2], d=+mm[3]; if(y<2000||y>2100) return false;
-    const dt=new Date(y,mo-1,d); return dt.getFullYear()===y&&dt.getMonth()===mo-1&&dt.getDate()===d;
-  }
-  function labelOf(iso){ const [y,mo,d]=iso.split("-").map(Number); return WD[new Date(y,mo-1,d).getDay()]+", "+p2(d)+"."+p2(mo)+"."+y; }
-  function isoOfLabel(s){ const mm=/(\d{2})\.(\d{2})\.(\d{4})\s*$/.exec(String(s||"")); if(!mm) return ""; const iso=mm[3]+"-"+mm[2]+"-"+mm[1]; return isoValid(iso)?iso:""; }
-  /* Aufgabenblock von Frage 1 (erste Zeile des Aufgabentexts = Frage 1) */
-  function q1Block(){
-    for(const b of editorBlocks()){
-      if(!isTask(b)) continue;
-      const tt=b.querySelector(".task-text");
-      if(tt && String(tt.textContent||"").split("\n")[0].trim()===Q1) return b;
+(function () {
+  "use strict";
+  const byId = (id) => document.getElementById(id);
+  const QUESTIONS = (Array.isArray(CFG.prefill) ? CFG.prefill : []).map(String);
+  const N = QUESTIONS.length;
+  const MAX_ANSWER = 8000;                      // je Antwort (wie im Feibeitsblatt)
+  const MIN_WORDS = 60;                         // Vorgabe des Lerntagebuchs: Eintrag mit mindestens 60 Wörtern
+  const PDF_MAX_BYTES = 5 * 1024 * 1024;        // hochgeladene Zwischenstand-PDF
+  const MAX_T = 60000;                          // Obergrenze für den Text einer hochgeladenen PDF
+  const LT_OFF_TEXT = "Rechtschreibprüfung (LanguageTool): erst ab 16 Jahren – mit 16 und 17 nur mit Erlaubnis deiner Eltern.";
+
+  /* ---------- kleine Helfer ---------- */
+  function h(tag, props, kids) {   // Element bauen – Texte immer als Textknoten
+    const n = document.createElement(tag);
+    if (props) for (const k of Object.keys(props)) {
+      const v = props[k];
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else n.setAttribute(k, v === true ? "" : String(v));
     }
+    if (kids) for (const c of kids) { if (c == null || c === false) continue; n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); }
+    return n;
+  }
+  const pad2 = (n) => String(n).padStart(2, "0");
+  function listJoin(a) { return a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " und " + a[a.length - 1]; }
+  function setStatus(node, text, kind) {
+    node.textContent = "";
+    node.classList.remove("ok", "bad");
+    if (kind === "ok" || kind === "bad") node.classList.add(kind);
+    if (kind === "busy") node.appendChild(h("span", { class: "spinner", "aria-hidden": "true" }));
+    if (text) node.appendChild(document.createTextNode(text));
+  }
+  function busy(btn, on, text) {   // Button während einer Aktion sperren; hatte er den Fokus, bekommt er ihn danach zurück
+    if (on) {
+      if (btn._label == null) btn._label = btn.textContent;
+      btn._hadFocus = document.activeElement === btn;
+      btn.disabled = true; if (text) btn.textContent = text;
+    } else {
+      btn.disabled = false; if (btn._label != null) { btn.textContent = btn._label; btn._label = null; }
+      if (btn._hadFocus && document.activeElement === document.body) { try { btn.focus({ preventScroll: true }); } catch (e) { /* egal */ } }
+      btn._hadFocus = false;
+    }
+  }
+  /* Fokus kurz nach einem Bildschirmwechsel setzen – aber nur, wenn nicht schon ein sichtbares Element den Fokus hat
+     (sonst landeten Tastendrücke, die schon unterwegs sind, plötzlich auf einem Knopf) */
+  function focusSoon(el, ms) {
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (!a || a === document.body || !a.closest || !a.closest(".view.active, #lb-dlg.open")) focusEl(el);
+    }, ms == null ? 40 : ms);
+  }
+  function focusEl(el, scroll) {
+    if (!el) return;
+    try { el.focus({ preventScroll: !scroll }); } catch (e) { try { el.focus(); } catch (x) { /* egal */ } }
+    if (scroll) { try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { /* egal */ } }
+  }
+
+  /* ---------- Datum der Unterrichtssitzung (Aufgabe 1) ---------- */
+  const WD = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+  const LABEL_RE = /^[A-Za-zÄÖÜäöüß]+, \d{2}\.\d{2}\.\d{4}$/;
+  function todayIso() { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function isoValid(iso) {
+    const mm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "")); if (!mm) return false;
+    const y = +mm[1], mo = +mm[2], d = +mm[3]; if (y < 2000 || y > 2100) return false;
+    const dt = new Date(y, mo - 1, d); return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+  }
+  // „Dienstag, 29.09.2026“ – genau die Form, die „Check des Feind(t)es“ als gewähltes Datum liest
+  function labelOf(iso) { const [y, mo, d] = iso.split("-").map(Number); return WD[new Date(y, mo - 1, d).getDay()] + ", " + pad2(d) + "." + pad2(mo) + "." + y; }
+  function isoOfLabel(s) { const mm = /(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(s || "")); if (!mm) return ""; const iso = mm[3] + "-" + mm[2] + "-" + mm[1]; return isoValid(iso) ? iso : ""; }
+
+  /* ---------- Angaben ---------- */
+  const NAME_RE = /^[\p{L}\p{M}]+(?:[ '’-][\p{L}\p{M}]+)*$/u;   // Buchstaben, dazwischen Leerzeichen, Bindestrich oder Apostroph
+  const KLASSE_RE = /^[\p{L}\p{N}/-]{1,10}$/u;                   // wie im Feibeitsblatt
+  const cleanName = (v) => String(v == null ? "" : v).normalize("NFC").replace(/\s+/g, " ").trim();
+  const normKlasse = (v) => String(v == null ? "" : v).normalize("NFC").replace(/[\s.]+/g, "");   // „8 b“, „8.b“ und „8b“ sind dieselbe Klasse
+  function checkPerson(vn, nn, kl) {   // → null oder {field, msg}
+    if (!vn) return { field: "lb-vorname", msg: "Bitte trage deinen Vornamen ein." };
+    if (!NAME_RE.test(vn)) return { field: "lb-vorname", msg: "Im Vornamen sind nur Buchstaben, Leerzeichen, Bindestriche und Apostrophe erlaubt." };
+    if (!nn) return { field: "lb-nachname", msg: "Bitte trage deinen Nachnamen ein." };
+    if (!NAME_RE.test(nn)) return { field: "lb-nachname", msg: "Im Nachnamen sind nur Buchstaben, Leerzeichen, Bindestriche und Apostrophe erlaubt." };
+    if (!kl) return { field: "lb-klasse", msg: "Bitte trage deine Klasse ein (z. B. 8b)." };
+    if (!KLASSE_RE.test(kl)) return { field: "lb-klasse", msg: "Bei der Klasse sind nur Buchstaben, Ziffern, „/“ und „-“ erlaubt (höchstens 10 Zeichen)." };
     return null;
   }
-  function chosenIso(b){ const out=b&&b.querySelector(".ltb-date-out"); return out?isoOfLabel(out.textContent):""; }
-  function setErr(b,msg){
-    const box=b.querySelector(".ltb-date"); if(!box) return;
-    box.classList.toggle("missing",!!msg);
-    const er=box.querySelector(".ltb-date-err"); if(er) er.textContent=msg||"";
+
+  /* ---------- Zustand (nur im Arbeitsspeicher) ---------- */
+  const S = {
+    person: null,          // {vn, nn, kl}
+    date: "",              // gewähltes Datum (ISO) oder ""
+    tas: [],               // Antwortfelder; Index = Aufgabe − 1 (Aufgabe 1 hat das Kalenderfeld, kein Textfeld)
+    outs: [],              // Ausgabe der Rechtschreibprüfung je Aufgabe
+    ltConsent: false, ltDeclined: false, ltCache: new Map(),
+    seq: 0,                // zählt jede Änderung
+    savedSeq: 0,           // Stand der zuletzt heruntergeladenen Datei (Zwischenstand oder fertige PDF)
+    final: null,           // zuletzt erzeugte fertige PDF {seq, blob, url, name}
+    building: false,
+    pending: null          // Zwischenstand aus einer PDF, dessen Angaben noch ergänzt werden müssen
+  };
+
+  /* ---------- Bildschirme ---------- */
+  function showView(id) {
+    document.querySelectorAll(".view").forEach((s) => s.classList.toggle("active", s.id === id));
+    document.body.classList.toggle("writing", id === "lb-editor");
+    window.scrollTo(0, 0);
   }
-  let seq=0;
-  /* Feld in den Block einsetzen. Ein aus einem Zwischenstand wiederhergestellter Block trägt das Datum als zweite
-     Zeile im Aufgabentext – sie wandert in das (serialisierte) Ausgabe-Element; der Text bleibt Zeichen für Zeichen gleich. */
-  const LABEL_RE=/^[A-Za-zÄÖÜäöüß]+, \d{2}\.\d{2}\.\d{4}$/;
-  function decorate(b){
-    if(b.querySelector(".ltb-date")) return;
-    const tt=b.querySelector(".task-text"); if(!tt) return;
-    const full=String(tt.textContent||""); const nl=full.indexOf("\n");
-    // Zeile 2 ist nur dann das gewählte Datum, wenn sie genau so aussieht („Dienstag, 29.09.2026“). Weitere Zeilen (etwa eine
-    // weitere Frage aus einem älteren Zwischenstand) bleiben sichtbar im Block und unverändert im Text.
-    let rest="", more="";
-    if(nl>=0){
-      const after=full.slice(nl+1), nl2=after.indexOf("\n"), first=nl2>=0?after.slice(0,nl2):after;
-      if(LABEL_RE.test(first)&&isoOfLabel(first)){ rest=first; more=nl2>=0?after.slice(nl2):""; }
-      else more=full.slice(nl);
-      tt.textContent=full.slice(0,nl);
+
+  /* ---------- Bestätigungsdialog → Promise<true|false|null> ---------- */
+  let dlgResolve = null, dlgReturn = null, dlgOpenedAt = 0, dlgBackdrop = false;
+  function askConfirm(o) {
+    if (dlgResolve) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      dlgResolve = resolve; dlgReturn = document.activeElement; dlgOpenedAt = Date.now();
+      dlgBackdrop = "backdrop" in o ? o.backdrop : false;
+      byId("lb-dlg-title").textContent = o.title || "";
+      byId("lb-dlg-text").textContent = o.text || "";
+      byId("lb-dlg-ok").textContent = o.ok || "OK";
+      byId("lb-dlg-cancel").textContent = o.cancel || "Abbrechen";
+      byId("lb-dlg-ok").className = "btn" + (o.danger ? " danger" : "");
+      byId("lb-dlg").classList.add("open");
+      setTimeout(() => (o.danger || o.safeFirst ? byId("lb-dlg-cancel") : byId("lb-dlg-ok")).focus(), 20);
+    });
+  }
+  function closeDlg(val) {
+    if (!dlgResolve) return;
+    byId("lb-dlg").classList.remove("open");
+    const r = dlgResolve; dlgResolve = null;
+    try { if (dlgReturn && dlgReturn.focus) dlgReturn.focus(); } catch (e) { /* egal */ }
+    r(val);
+  }
+  byId("lb-dlg-ok").addEventListener("click", () => closeDlg(true));
+  byId("lb-dlg-cancel").addEventListener("click", () => closeDlg(false));
+  byId("lb-dlg").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); closeDlg(false); }
+    else if (e.key === "Tab") {   // Fokus im Dialog halten
+      const a = byId("lb-dlg-cancel"), b = byId("lb-dlg-ok");
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); }
+      else if (!e.shiftKey && document.activeElement === b) { e.preventDefault(); a.focus(); }
     }
-    const box=document.createElement("span"); box.className="ltb-date";
-    box.setAttribute("data-noser","1"); box.setAttribute("contenteditable","false");
-    const id="ltb-date-"+(++seq);
-    const lab=document.createElement("label"); lab.htmlFor=id; lab.textContent="Datum auswählen:";
-    const inp=document.createElement("input"); inp.type="date"; inp.id=id; inp.max=todayIso(); inp.required=true;
-    inp.setAttribute("aria-label","Datum der Unterrichtssitzung auswählen");
-    const er=document.createElement("span"); er.className="ltb-date-err"; er.setAttribute("role","alert");
-    box.appendChild(lab); box.appendChild(inp); box.appendChild(er);
-    const out=document.createElement("span"); out.className="ltb-date-out"; out.setAttribute("aria-hidden","true");
-    if(rest){ out.appendChild(document.createElement("br")); out.appendChild(document.createTextNode(rest)); }
-    const x=b.querySelector(".task-x");
-    b.insertBefore(box,x); b.insertBefore(out,x);
-    if(more){ const rs=document.createElement("span"); rs.className="ltb-rest"; rs.textContent=more; b.insertBefore(rs,x); }
-    const iso=isoOfLabel(rest); if(iso) inp.value=iso;
-    // Das Feld gehört nicht zum Editor-Text: Tastatur-, Eingabe- und Klick-Ereignisse nicht an den Editor weitergeben
-    ["keydown","keyup","keypress","beforeinput","input","paste","cut","copy","drop","dragstart","click","mousedown","mouseup","touchstart"]
-      .forEach(ev=>box.addEventListener(ev,e=>e.stopPropagation()));
-    inp.addEventListener("change",()=>setDate(b,inp));
-  }
-  /* Stelle des Ausgabe-Elements im serialisierten Text: kurz ein Markierungszeichen einsetzen und suchen */
-  function outOffset(out){
-    const keep=Array.prototype.slice.call(out.childNodes);
-    out.textContent="\uE000"; const t=serializeEditor().text;
-    out.textContent=""; keep.forEach(n=>out.appendChild(n));
-    const i=t.indexOf("\uE000"); return (i>=0&&i===t.lastIndexOf("\uE000"))?i:-1;
-  }
-  function outText(out){ return (out.querySelector("br")?"\n":"")+(out.textContent||""); }
-  function setDate(b,inp){
-    const out=b.querySelector(".ltb-date-out"); if(!out) return;
-    const iso=String(inp.value||"");
-    let text="";
-    if(iso){
-      if(!isoValid(iso)){ setErr(b,"Bitte wähle ein gültiges Datum aus."); }
-      else if(iso>todayIso()){ setErr(b,"Das Datum darf nicht in der Zukunft liegen."); }
-      else { text=labelOf(iso); setErr(b,""); }
+  });
+  byId("lb-dlg").addEventListener("click", (e) => { if (e.target === byId("lb-dlg") && Date.now() - dlgOpenedAt > 400) closeDlg(dlgBackdrop); });
+
+  /* ---------- Mitwachsende Antwortfelder ---------- */
+  function autoGrow(ta) {
+    if (!ta.isConnected || ta.offsetWidth === 0) return;
+    let m = ta._measure;
+    if (!m) {
+      m = ta.cloneNode(false);
+      ["id", "name", "aria-describedby", "aria-labelledby", "placeholder", "required"].forEach((a) => m.removeAttribute(a));
+      m.setAttribute("aria-hidden", "true"); m.tabIndex = -1; m.readOnly = true;
+      m.classList.add("measure");
+      ta._measure = m;
     }
-    else setErr(b,"");
-    const cur=out.textContent||"";
-    if(cur===text) return;
-    syncTracking("t");                                        // bisher Getipptes übernehmen
-    const off=outOffset(out), oldSer=outText(out), before=prevValue;
-    out.textContent="";
-    if(text){ out.appendChild(document.createElement("br")); out.appendChild(document.createTextNode(text)); }
-    const ser=serializeEditor(), newSer=outText(out);
-    if(off>=0 && ser.text===before.slice(0,off)+newSer+before.slice(off+oldSer.length) && recs.length===before.length){
-      recs.splice(off,oldSer.length,...newSer.split("").map(()=>({src:"s",t:-1})));   // nur die Datumszeile: Systemtext
-      prevValue=ser.text; applySystemFlags(ser.fmt);
-    } else syncTracking("s");                                 // Rückfall: neue Zeichen ohne Tipp-Tempo
-    updateCharcount(); updateEmpty(); hideDlPanel(); positionTaskBtn();
+    if (m.parentNode !== ta.parentNode) ta.parentNode.insertBefore(m, ta.nextSibling);
+    m.style.width = ta.offsetWidth + "px";
+    m.value = ta.value;
+    const borders = ta.offsetHeight - ta.clientHeight;
+    ta.style.height = (m.scrollHeight + borders) + "px";
   }
-  function decorateNow(){ const b=q1Block(); if(b) decorate(b); }
-  new MutationObserver(decorateNow).observe(ed,{childList:true});
-  decorateNow();
-  /* Fertige PDF erst mit Datum (Frage 1 vorhanden). Läuft vor dem Klick-Handler der Engine (Capture-Phase). */
-  window.addEventListener("click",(e)=>{
-    const btn=e.target&&e.target.closest?e.target.closest("#export-btn"):null; if(!btn) return;
-    const b=q1Block(); if(!b) return;                       // Frage 1 entfernt: nichts zu prüfen
-    decorate(b);
-    if(chosenIso(b)) return;
-    e.preventDefault(); e.stopImmediatePropagation();
-    setErr(b,"Bitte wähle zuerst hier das Datum der Unterrichtssitzung aus – danach lässt sich die PDF erstellen.");
-    try{ b.scrollIntoView({block:"center",behavior:"smooth"}); }catch(err){ b.scrollIntoView(); }
-    const inp=b.querySelector(".ltb-date input"); if(inp) setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(err){} },250);
-  },true);
+  let growPending = false;
+  function growAll() {
+    if (growPending) return; growPending = true;
+    requestAnimationFrame(() => { growPending = false; document.querySelectorAll("#lb-tasks textarea.answer:not(.measure)").forEach(autoGrow); });
+  }
+  window.addEventListener("resize", growAll);
+  if (window.ResizeObserver) { const ro = new ResizeObserver(growAll); ro.observe(document.body); ro.observe(byId("lb-sheet")); }
+
+  /* ---------- Tippzeiten (Messkern wie im Feibeitsblatt, Block TYPING) ----------
+   * Je Antwortfeld ta._tt = {text, recs:[{t, g?}], undo, lastDel}: je UTF-16-Einheit der Zeitpunkt t (performance.now(), -1 =
+   * unbekannt) bzw. ein eingefrorener Abstand g (aus einer hochgeladenen Zwischenstand-PDF). Den Zeitpunkt merkt der Capture-
+   * Listener „input“ (_evTs/_evType), abgeglichen wird in answerChanged. Alle Einheiten eines Ereignisses bekommen denselben
+   * Zeitpunkt (das erste Zeichen gemessen, weitere 0 ms – wie in der Engine); Rückgängig/Wiederholen holt die Zeiten eines eben
+   * gelöschten Abschnitts zurück. Beim Erzeugen der PDF wird daraus der Abstand zum vorigen Zeichen im Text (ms, wie m in der
+   * Engine; -1 = unbekannt bzw. erstes Zeichen). */
+  const TT_UNDO_MAX = 20, TT_UNDO_CHARS = 2 * (MAX_ANSWER + 100);
+  const ttHi = (c) => c >= 0xd800 && c <= 0xdbff, ttLo = (c) => c >= 0xdc00 && c <= 0xdfff;
+  function ttDiff(a, b, caret) {   // gemeinsamen Anfang und gemeinsames Ende abziehen → {at, del, ins}; nie mitten in einem Ersatzzeichen-Paar
+    const n = Math.min(a.length, b.length); let p = 0, s = 0;
+    while (p < n && a.charCodeAt(p) === b.charCodeAt(p)) p++;
+    if (p > 0 && ttHi(a.charCodeAt(p - 1))) p--;
+    while (s < n - p && a.charCodeAt(a.length - 1 - s) === b.charCodeAt(b.length - 1 - s)) s++;
+    if (s > 0 && ttLo(a.charCodeAt(a.length - s))) s--;
+    let at = p, del = a.length - p - s, ins = b.slice(p, b.length - s);
+    if (Number.isInteger(caret) && (del === 0) !== (ins.length === 0)) {   // „aa“ → „aaa“: die getippte Stelle wählen
+      const k = del || ins.length, q = del ? caret : caret - k, long = del ? a : b, short = del ? b : a;
+      if (q >= 0 && q < at && long.slice(q + k) === short.slice(q) && !ttLo(long.charCodeAt(q)) && !ttLo(long.charCodeAt(q + k))) {
+        at = q; if (!del) ins = b.slice(q, q + k);
+      }
+    }
+    return { at, del, ins };
+  }
+  function ttNew(text, gaps) {
+    text = String(text == null ? "" : text);
+    const ok = Array.isArray(gaps) && gaps.length === text.length, recs = new Array(text.length);
+    for (let i = 0; i < text.length; i++) recs[i] = ok ? { t: -1, g: gaps[i] } : { t: -1 };
+    return { text, recs, undo: [], lastDel: false };
+  }
+  function ttApply(tt, next, now, type, caret) {
+    next = String(next == null ? "" : next);
+    if (type === "deleteCompositionText" || next === tt.text) return false;   // Safari löscht vor dem Bestätigen den Kompositionstext
+    const a = tt.text, d = ttDiff(a, next, caret), m = d.ins.length;
+    let add = null;
+    if (m && (type === "historyUndo" || type === "historyRedo")) {
+      for (let k = tt.undo.length - 1; k >= 0 && !add; k--) if (tt.undo[k].text === d.ins) add = tt.undo[k].recs.map((r) => (r.g != null ? { t: r.t, g: r.g } : { t: r.t }));
+    }
+    if (!add) { add = new Array(m); for (let k = 0; k < m; k++) add[k] = { t: now }; }
+    if (d.del) {   // Gelöschtes merken; Rücktaste bzw. Entf hintereinander ergeben einen Abschnitt
+      const text = a.slice(d.at, d.at + d.del), recs = tt.recs.slice(d.at, d.at + d.del), last = tt.undo[tt.undo.length - 1];
+      if (tt.lastDel && !m && last && d.at + d.del === last.at) { last.text = text + last.text; last.recs = recs.concat(last.recs); last.at = d.at; }
+      else if (tt.lastDel && !m && last && d.at === last.at) { last.text += text; last.recs = last.recs.concat(recs); }
+      else tt.undo.push({ at: d.at, text, recs });
+      let chars = 0; for (const u of tt.undo) chars += u.text.length;
+      while (tt.undo.length > TT_UNDO_MAX || (tt.undo.length > 1 && chars > TT_UNDO_CHARS)) chars -= tt.undo.shift().text.length;
+    }
+    tt.lastDel = d.del > 0 && !m;
+    tt.recs = tt.recs.slice(0, d.at).concat(add, tt.recs.slice(d.at + d.del));
+    tt.text = next;
+    return true;
+  }
+  function ttSync(ta) {
+    const ev = ta._evTs > 0, now = ev ? ta._evTs : performance.now(), type = ev ? ta._evType || "" : "";
+    ta._evTs = ta._evType = undefined;
+    if (!ta._tt) ta._tt = ttNew(ta.value, null);
+    let caret; if (ev) { try { caret = ta.selectionEnd; } catch (e) { caret = undefined; } }
+    ttApply(ta._tt, ta.value, now, type, caret);
+  }
+  function ttSyncSafe(ta) { try { ttSync(ta); } catch (e) { try { ta._tt = ttNew(ta.value, null); } catch (x) { /* egal */ } } }
+  /* Abstände je UTF-16-Einheit der Antwort (ms, ganzzahlig; -1 = unbekannt bzw. erstes Zeichen) – passt die Messung nicht zum
+     Text, sind alle -1 (nie fälschlich rot, wie das Sicherheitsnetz der Engine) */
+  function gapsOf(ta) {
+    const v = ta.value, n = v.length, out = new Array(n).fill(-1), tt = ta._tt;
+    if (!tt || tt.text !== v || !tt.recs || tt.recs.length !== n) return out;
+    for (let i = 1; i < n; i++) {
+      const r = tt.recs[i], p = tt.recs[i - 1];
+      if (ttLo(v.charCodeAt(i)) && ttHi(v.charCodeAt(i - 1))) { out[i] = out[i - 1]; continue; }   // zweite Hälfte eines Emojis: wie die erste
+      if (typeof r.g === "number" && isFinite(r.g)) out[i] = r.g;
+      else if (r.t >= 0 && p.t >= 0) out[i] = Math.round(r.t - p.t);
+    }
+    return out;
+  }
+
+  /* ---------- Einfügen sperren (in Schichten, wie im Feibeitsblatt; nur in den Antwortfeldern) ----------
+   * 1) paste  2) dragenter/dragover/drop  3) beforeinput (insertFrom…; große insertText-Stücke = Tastatur-Zwischenablage)
+   * 4) Netz: input-Unterschied vorher/nachher. Diktat und IME (Komposition) bleiben erlaubt. */
+  const PASTE_MSG = "Einfügen aus der Zwischenablage ist hier nicht erlaubt – bitte selbst tippen.";
+  const BLOCK_TYPES = new Set(["insertFromPaste", "insertFromPasteAsQuotation", "insertFromDrop", "insertFromYank"]);
+  const TYPING_TYPES = new Set(["insertText", "insertCompositionText", "insertFromComposition", "insertReplacementText"]);
+  const MAX_JUMP = 20, MAX_COMPOSED = 2000;
+  function typedTooBig(type, text) {
+    const s = String(text || "");
+    if (type === "insertText") return s.length > 40 || /\n/.test(s) || (s.length > 20 && /\s/.test(s.trim()));
+    if (type === "insertReplacementText") return s.length > 60 || /\n/.test(s);
+    if (type === "insertCompositionText" || type === "insertFromComposition") return s.length > MAX_COMPOSED;
+    return s.length > MAX_JUMP;
+  }
+  const answerOf = (t) => (t && t.nodeType === 1 && t.closest) ? t.closest("#lb-tasks textarea.answer:not(.measure)") : null;
+  function warnPaste(ta) {
+    const pe = ta._pe; if (!pe) return;
+    pe.textContent = PASTE_MSG;
+    clearTimeout(pe._t); pe._t = setTimeout(() => { pe.textContent = ""; }, 5000);
+  }
+  function inserted(a, b) {
+    const n = Math.min(a.length, b.length); let p = 0, s = 0;
+    while (p < n && a.charCodeAt(p) === b.charCodeAt(p)) p++;
+    while (s < n - p && a.charCodeAt(a.length - 1 - s) === b.charCodeAt(b.length - 1 - s)) s++;
+    return { at: p, text: b.slice(p, b.length - s) };
+  }
+  document.addEventListener("paste", (e) => { const ta = answerOf(e.target); if (ta) { e.preventDefault(); e.stopImmediatePropagation(); warnPaste(ta); } }, true);
+  ["dragenter", "dragover"].forEach((type) => document.addEventListener(type, (e) => {
+    if (!answerOf(e.target)) return;
+    e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "none";
+  }, true));
+  document.addEventListener("drop", (e) => { const ta = answerOf(e.target); if (ta) { e.preventDefault(); e.stopImmediatePropagation(); warnPaste(ta); } }, true);
+  document.addEventListener("beforeinput", (e) => {
+    const ta = answerOf(e.target); if (!ta) return;
+    if (ta._ok === undefined) ta._ok = ta.value;
+    if (BLOCK_TYPES.has(e.inputType)) { e.preventDefault(); warnPaste(ta); return; }
+    if (e.cancelable && !e.isComposing && typeof e.data === "string" && typedTooBig(e.inputType, e.data)) { e.preventDefault(); warnPaste(ta); }
+  }, true);
+  document.addEventListener("input", (e) => {
+    const ta = answerOf(e.target); if (!ta) return;
+    ta._evType = e.inputType || ""; ta._evTs = performance.now();   // Tippzeiten: abgeglichen wird in answerChanged
+    if (e.isComposing || e.inputType === "insertCompositionText") return;   // während einer Komposition (IME, Diktat) nichts anfassen
+    const t = e.inputType || "", prev = ta._ok === undefined ? "" : ta._ok;
+    if (t === "historyUndo" || t === "historyRedo") { ta._ok = ta.value; return; }
+    const ins = inserted(prev, ta.value);
+    if (BLOCK_TYPES.has(t) || (TYPING_TYPES.has(t) ? typedTooBig(t, ins.text) : ins.text.length > MAX_JUMP)) {
+      ta.value = prev;
+      try { ta.setSelectionRange(ins.at, ins.at); } catch (x) { /* egal */ }
+      e.stopImmediatePropagation();
+      warnPaste(ta); answerChanged(ta);
+      return;
+    }
+    ta._ok = ta.value;
+  }, true);
+  document.addEventListener("compositionend", (e) => {
+    const ta = answerOf(e.target); if (!ta) return;
+    setTimeout(() => {
+      const prev = ta._ok === undefined ? "" : ta._ok;
+      if (inserted(prev, ta.value).text.length > MAX_COMPOSED) { ta.value = prev; warnPaste(ta); answerChanged(ta); }
+      else { ta._ok = ta.value; answerChanged(ta); }   // Netz: eine Bestätigung ohne eigenes input-Ereignis
+    }, 0);
+  }, true);
+  document.addEventListener("focusin", (e) => { const ta = answerOf(e.target); if (ta && ta._ok === undefined) ta._ok = ta.value; }, true);
+
+  /* ---------- Rechtschreibung und Grammatik (LanguageTool, öffentliche API; wie im Feibeitsblatt) ----------
+   * Nur auf Klick; „simple request“ ohne eigene Header (kein Preflight); Offsets = UTF-16 = JS-Indizes. Die Prüfung schreibt nie ins
+   * Feld – Korrekturen tippt man selbst (passt zur Einfügesperre und zu den Tippzeiten). */
+  const LT_URL = "https://api.languagetool.org/v2/check";
+  const LT_MAX_BYTES = 20000;
+  const LT_APPLY_CATEGORIES = new Set(["TYPOS", "MULTITOKEN_SPELLING", "CASING", "COMPOUNDING", "GRAMMAR", "PUNCTUATION", "HILFESTELLUNG_KOMMASETZUNG", "CONFUSED_WORDS", "PROPER_NOUNS"]);
+  const LT_APPLY_RULE_PREFIXES = ["GERMAN_WORD_REPEAT_RULE", "DE_SENTENCE_WHITESPACE", "COMMA_PARENTHESIS_WHITESPACE", "DE_SIMPLE_REPLACE"];
+  const LT_NEVER_APPLY_RULES = new Set([
+    "DE_DU_UPPER_LOWER", "DOPPELTES_AUSRUFEZEICHEN", "AUFFORDERUNG_MIT_FRAGEZEICHEN", "FRAGEZEICHEN_STATT_PUNKT",
+    "PFEILE", "GROESSERALS", "MALZEICHEN", "LEERZEICHEN_RECHENZEICHEN", "EINHEIT_LEERZEICHEN",
+    "BISSTRICH_STATT_WAEHRUNG", "ZAHL_PUNKT_KOMMA", "VON_BIS", "ZWISCHEN_BISSTRICH"
+  ]);
+  function ltWhyNot(m, ignoreReplacement) {   // null = Treffer darf angewendet werden, sonst Grund
+    const ruleId = (m.rule && m.rule.id) || "", cat = (m.rule && m.rule.category && m.rule.category.id) || "";
+    if (!ignoreReplacement && (!Array.isArray(m.replacements) || !m.replacements.length || typeof m.replacements[0].value !== "string")) return "no-replacement";
+    if (m.type && m.type.typeName === "Hint") return "hint";
+    if (LT_NEVER_APPLY_RULES.has(ruleId)) return "never-rule";
+    if (ruleId.indexOf("AI_") === 0) return "ai-rule";
+    if (!LT_APPLY_RULE_PREFIXES.some((p) => ruleId.indexOf(p) === 0) && !LT_APPLY_CATEGORIES.has(cat)) return "category";
+    return null;
+  }
+  function splitsPair(text, i) { return i > 0 && i < text.length && ttLo(text.charCodeAt(i)) && ttHi(text.charCodeAt(i - 1)); }
+  function ctxOk(text, m, off, len) {
+    if (!m.context || typeof m.context.text !== "string" || !Number.isInteger(m.context.offset) || m.context.length !== len) return true;
+    return m.context.text.substr(m.context.offset, m.context.length) === text.slice(off, off + len).replace(/\n/g, " ");
+  }
+  function correctText(text, matches) {   // ersten Vorschlag je passendem Treffer anwenden – von hinten nach vorn, Überlappungen überspringen
+    const cand = [], noSugg = [];
+    (matches || []).forEach((m, idx) => {
+      const off = m && m.offset, len = m && m.length;
+      if (!Number.isInteger(off) || !Number.isInteger(len) || off < 0 || len < 0 || off + len > text.length) return;
+      if (splitsPair(text, off) || splitsPair(text, off + len)) return;
+      if (!ctxOk(text, m, off, len)) return;
+      const why = ltWhyNot(m, false);
+      if (why === "no-replacement") { if (len > 0 && !ltWhyNot(m, true)) noSugg.push({ off, end: off + len, message: String(m.message || "") }); return; }
+      if (why) return;
+      const from = text.slice(off, off + len), to = m.replacements[0].value;
+      if (to === from) return;
+      cand.push({ m, idx, off, end: off + len, from, to });
+    });
+    cand.sort((a, b) => (b.off - a.off) || (b.end - a.end) || (a.idx - b.idx));
+    const kept = []; let limit = Infinity, lastInsertAt = -1;
+    for (const c of cand) {
+      if (c.end > limit || (c.off === c.end && c.off === lastInsertAt)) continue;
+      kept.push(c); limit = c.off; lastInsertAt = c.off === c.end ? c.off : -1;
+    }
+    let corrected = text;
+    for (const c of kept) corrected = corrected.slice(0, c.off) + c.to + corrected.slice(c.end);
+    kept.reverse();
+    let delta = 0;
+    const changes = kept.map((c) => {
+      const start = c.off + delta; delta += c.to.length - (c.end - c.off);
+      return { from: c.from, to: c.to, start, end: start + c.to.length, origStart: c.off, origEnd: c.end, message: String(c.m.message || "") };
+    });
+    const unknown = [];
+    noSugg.sort((a, b) => a.off - b.off);
+    let lastEnd = -1;
+    for (const q of noSugg) {
+      if (q.off < lastEnd) continue;
+      if (changes.some((c) => q.off < c.origEnd && c.origStart < q.end || (c.origStart === c.origEnd && c.origStart > q.off && c.origStart < q.end))) continue;
+      let d = 0; for (const c of changes) if (c.origEnd <= q.off) d += c.to.length - (c.origEnd - c.origStart);
+      unknown.push({ start: q.off + d, end: q.end + d, message: q.message }); lastEnd = q.end;
+    }
+    return { corrected, changes, unknown };
+  }
+  const te = new TextEncoder();
+  class LTError extends Error { constructor(code, status) { super(code); this.code = code; this.status = status || 0; } }
+  async function ltCheck(text, signal) {
+    const body = new URLSearchParams({
+      text, language: "de-DE",
+      disabledCategories: "STYLE,COLLOQUIALISMS,REDUNDANCY,REPETITIONS_STYLE,GENDER_NEUTRALITY,CREATIVE_WRITING,CORRESPONDENCE,WIKIPEDIA,TEXT_ANALYSIS",
+      enabledRules: "GERMAN_WORD_REPEAT_RULE"
+    });
+    let res;
+    try { res = await fetch(LT_URL, { method: "POST", body, signal, credentials: "omit", referrerPolicy: "no-referrer" }); }
+    catch (e) { throw new LTError(signal && signal.aborted ? "TIMEOUT" : "NETWORK"); }
+    if (res.ok) { try { return await res.json(); } catch (e) { throw new LTError(signal && signal.aborted ? "TIMEOUT" : "SERVER", res.status); } }
+    if (res.status === 429) throw new LTError("RATE_LIMIT", 429);
+    if (res.status === 413) throw new LTError("TOO_LONG", 413);
+    throw new LTError("SERVER", res.status);
+  }
+  const LT_ERR = {
+    RATE_LIMIT: "Gerade prüfen sehr viele gleichzeitig. Bitte warte eine Minute und versuche es dann noch einmal.",
+    NETWORK: "LanguageTool ist gerade nicht erreichbar (Netz, Schulfilter oder Dienst gestört).",
+    TIMEOUT: "LanguageTool antwortet gerade nicht. Bitte versuche es später noch einmal.",
+    TOO_LONG: "Dein Text ist zu lang für die Prüfung (höchstens etwa 20.000 Zeichen)."
+  };
+  /* Vor der ersten Prüfung: Hinweis, wohin der Text geht, und Selbstauskunft zur Altersgrenze des Anbieters → true (bestätigt),
+     false („Trifft nicht zu“, auch Esc) oder null (Klick neben den Dialog: nur geschlossen, keine Antwort) */
+  async function ltConsent() {
+    if (S.ltConsent) return true;
+    const ok = await askConfirm({
+      title: "Rechtschreibung und Grammatik prüfen",
+      text: "Die Prüfung übernimmt LanguageTool (languagetool.org, Betreiber Learneo, Inc., USA). Dabei wird nur der Text dieser Antwort an LanguageTool gesendet – ohne deinen Namen oder deine Angaben, aber mit der Internetadresse deines Geräts. Die Prüfung ist freiwillig.\n\n" +
+        "Laut Anbieter darfst du LanguageTool nur nutzen, wenn du\n• mindestens 18 Jahre alt bist oder\n• 16 oder 17 Jahre alt bist und deine Eltern es dir erlaubt haben.\n\n" +
+        "Trifft das nicht auf dich zu, wähle „Trifft nicht zu“ – du schreibst ganz normal weiter und lädst dein Lerntagebuch genauso herunter, ohne Nachteil.\n" +
+        "Die Bestätigung gilt, bis du die Seite neu lädst oder einen neuen Eintrag beginnst.",
+      ok: "Trifft auf mich zu – prüfen", cancel: "Trifft nicht zu", safeFirst: true, backdrop: null
+    });
+    if (ok) S.ltConsent = true;
+    return ok;
+  }
+  function ltDecline(i) {   // „Trifft nicht zu“: der Hinweis ersetzt alle Buttons; Fokus auf den Hinweis der Aufgabe
+    S.ltDeclined = true;
+    let target = null;
+    S.tas.forEach((ta, k) => {
+      if (!ta || !ta._ltBtn) return;
+      const off = h("span", { class: "ltstat lt-off", tabindex: "-1", text: LT_OFF_TEXT });
+      ta._ltBtn.replaceWith(off); ta._ltBtn = null;
+      if (k === i) target = off;
+    });
+    if (target) target.focus();
+  }
+  async function ltRun(i, btn, stat) {
+    const ta = S.tas[i], run = S.run;
+    if (S.ltDeclined) return;
+    setStatus(stat, "", "");
+    const text = ta.value;
+    if (!text.trim()) { setStatus(stat, "Schreibe zuerst etwas in das Feld.", ""); return; }
+    const consent = await ltConsent();
+    if (run !== S.run) return;
+    if (consent !== true) {
+      setStatus(stat, "Ohne Bestätigung wird nichts an LanguageTool gesendet.", "");
+      if (consent === false) ltDecline(i);
+      return;
+    }
+    if (te.encode(text).length > LT_MAX_BYTES) { setStatus(stat, LT_ERR.TOO_LONG, "bad"); return; }
+    const cached = S.ltCache.get(text);
+    if (cached) { renderLT(i, text, cached); return; }
+    busy(btn, true);
+    setStatus(stat, "Wird geprüft …", "busy");
+    const ac = new AbortController(), timer = setTimeout(() => ac.abort(), 30000);
+    try {
+      const data = await ltCheck(text, ac.signal);
+      if (run !== S.run) return;
+      const res = correctText(text, data && Array.isArray(data.matches) ? data.matches : []);
+      res.incomplete = !!(data && data.warnings && data.warnings.incompleteResults);
+      if (S.ltCache.size > 60) S.ltCache.clear();
+      S.ltCache.set(text, res);
+      if (ta.value !== text) { setStatus(stat, "Dein Text hat sich während der Prüfung geändert. Bitte klicke noch einmal auf „Rechtschreibung und Grammatik prüfen“.", ""); return; }
+      setStatus(stat, "", "");
+      renderLT(i, text, res);
+    } catch (e) {
+      if (run !== S.run) return;
+      setStatus(stat, LT_ERR[e && e.code] || `Die Prüfung hat gerade nicht geklappt${e && e.status ? " (Fehler " + e.status + ")" : ""}. Bitte versuche es später noch einmal.`, "bad");
+    } finally { clearTimeout(timer); if (run === S.run) busy(btn, false); }
+  }
+  function renderLT(i, text, res) {
+    const out = S.outs[i]; out.textContent = ""; out._text = text;
+    out.classList.remove("hidden", "stale");
+    if (!res.changes.length && !res.unknown.length) {
+      out.appendChild(h("p", { class: "lt-text", text: "Keine Rechtschreib- oder Grammatikfehler gefunden." }));
+    } else {
+      out.appendChild(h("p", { class: "lt-head", text: "Korrigierte Fassung" }));
+      const p = h("p", { class: "lt-text" });
+      const spans = res.changes.filter((c) => c.end > c.start).map((c) => ({ start: c.start, end: c.end, kind: "c", title: `statt „${c.from}“${c.message ? ": " + c.message : ""}` }))
+        .concat(res.unknown.map((q) => ({ start: q.start, end: q.end, kind: "q", title: q.message || "Möglicher Fehler – kein Vorschlag" })))
+        .sort((a, b) => a.start - b.start);
+      let pos = 0;
+      for (const s of spans) {
+        if (s.start < pos) continue;
+        if (s.start > pos) p.appendChild(document.createTextNode(res.corrected.slice(pos, s.start)));
+        p.appendChild(h(s.kind === "c" ? "mark" : "span", { class: s.kind === "q" ? "lt-q" : null, title: s.title, text: res.corrected.slice(s.start, s.end) }));
+        pos = s.end;
+      }
+      if (pos < res.corrected.length) p.appendChild(document.createTextNode(res.corrected.slice(pos)));
+      out.appendChild(p);
+      const leg = [];
+      if (res.changes.length) leg.push("Markiert: geänderte Stellen.");
+      if (res.unknown.length) leg.push("Rot unterstrichen: vermutlich falsch, aber ohne Vorschlag.");
+      out.appendChild(h("p", { class: "lt-legend", text: leg.join(" ") }));
+      const items = res.changes.filter((c) => c.from.trim() || c.to.trim()).slice(0, 12)
+        .map((c) => h("li", { text: `${c.from.trim() ? "„" + c.from + "“" : "(nichts)"} → ${c.to.trim() ? "„" + c.to + "“" : "(entfernt)"}${c.message ? " – " + c.message : ""}` }));
+      if (items.length) out.appendChild(h("ul", { class: "lt-changes" }, items));
+    }
+    if (res.incomplete) out.appendChild(h("p", { class: "lt-legend", text: "Prüfung unvollständig – ein Teil des Textes wurde nicht geprüft." }));
+    out.appendChild(h("p", { class: "lt-note" }, [
+      "Dies ist die Antwort einer KI (LanguageTool). Sie kann selbst Fehler machen. Nutze sie, um Rechtschreibung und Grammatik deines eigenen Textes zu überarbeiten – übernimm nichts ungeprüft. Prüfung durch ",
+      h("a", { href: "https://languagetool.org", target: "_blank", rel: "noopener", text: "LanguageTool" }), "."
+    ]));
+    out.appendChild(h("p", { class: "lt-stale hidden", text: "Diese Prüfung bezieht sich auf einen älteren Stand deines Textes." }));
+    growAll();
+  }
+
+  /* ---------- Aufgaben ---------- */
+  const shownQuestion = (q) => q.replace(/^\s*\d+\)\s*/, "");   // „Aufgabe n“ steht schon darüber; die PDF behält „n) …“
+  function buildTasks() {
+    const box = byId("lb-tasks"); box.textContent = "";
+    S.tas = []; S.outs = [];
+    QUESTIONS.forEach((q, i) => {
+      const n = i + 1;
+      if (i === 0) {   // Aufgabe 1: Datum per Kalenderfeld (kein Textfeld)
+        const inp = h("input", { type: "date", id: "lb-date", max: todayIso(), min: "2000-01-01", required: true, "aria-describedby": "lb-q-1 lb-date-err" });
+        inp.addEventListener("change", onDate); inp.addEventListener("input", onDate);
+        box.appendChild(h("section", { class: "task", id: "lb-t-1", "aria-labelledby": "lb-l-1" }, [
+          h("div", { class: "task-q" }, [h("span", { class: "task-label", id: "lb-l-1", text: "Aufgabe 1" }), h("div", { class: "task-text", id: "lb-q-1", text: shownQuestion(q) })]),
+          h("div", { class: "datebox" }, [h("label", { for: "lb-date", text: "Datum auswählen" }), inp, h("span", { class: "date-out", id: "lb-date-out" })]),
+          h("p", { class: "err", id: "lb-date-err", role: "alert" })
+        ]));
+        S.tas.push(null); S.outs.push(null);
+        return;
+      }
+      const ta = h("textarea", { class: "answer", id: "lb-a-" + n, rows: "3", maxlength: String(MAX_ANSWER), autocomplete: "off", autocapitalize: "sentences",
+        spellcheck: "true", writingsuggestions: "false", "aria-describedby": "lb-q-" + n, placeholder: "Deine Antwort …" });
+      const pe = h("p", { class: "paste-err", id: "lb-pe-" + n, role: "alert" });
+      const cnt = h("p", { class: "charcount", id: "lb-cc-" + n, "aria-live": "polite" });
+      const ltBtn = S.ltDeclined ? null : h("button", { type: "button", class: "btn ghost small ltbtn", text: "Rechtschreibung und Grammatik prüfen", "aria-label": "Rechtschreibung und Grammatik prüfen – Aufgabe " + n });
+      const ltStat = h("span", { class: "ltstat", role: "status", "aria-live": "polite" });
+      const out = h("div", { class: "lt-out hidden", "aria-live": "polite" });
+      box.appendChild(h("section", { class: "task", id: "lb-t-" + n, "aria-labelledby": "lb-l-" + n }, [
+        h("div", { class: "task-q" }, [h("label", { class: "task-label", for: "lb-a-" + n, id: "lb-l-" + n, text: "Aufgabe " + n }), h("div", { class: "task-text", id: "lb-q-" + n, text: shownQuestion(q) })]),
+        h("div", { class: "task-body" }, [ta, pe, cnt, h("div", { class: "checkrow" }, [ltBtn || h("span", { class: "ltstat lt-off", text: LT_OFF_TEXT }), ltStat]), out])
+      ]));
+      ta._idx = i; ta._pe = pe; ta._cnt = cnt; ta._ltStat = ltStat; ta._ltBtn = ltBtn; ta._tt = ttNew("", null); ta._last = "";
+      ta.addEventListener("input", () => answerChanged(ta));
+      if (ltBtn) ltBtn.addEventListener("click", () => ltRun(i, ltBtn, ltStat));
+      S.tas.push(ta); S.outs.push(out);
+    });
+  }
+  function updateCounter(ta) {
+    const c = ta._cnt; if (!c) return;
+    const n = ta.value.length, left = MAX_ANSWER - n;
+    if (n < MAX_ANSWER - 1000) { c.textContent = ""; c.classList.remove("bad"); return; }
+    c.textContent = left > 0 ? `Noch ${left.toLocaleString("de-DE")} Zeichen (höchstens ${MAX_ANSWER.toLocaleString("de-DE")}).`
+      : `Höchstens ${MAX_ANSWER.toLocaleString("de-DE")} Zeichen – bitte kürze deine Antwort.`;
+    c.classList.toggle("bad", left <= 0);
+  }
+  /* Nach jeder Änderung einer Antwort: Tippzeiten abgleichen, Feld anpassen, alte Prüfung abblenden, Fortschritt zeigen */
+  function answerChanged(ta) {
+    ttSyncSafe(ta);
+    autoGrow(ta);
+    updateCounter(ta);
+    if (ta._ltStat && !(ta._ltBtn && ta._ltBtn.disabled) && ta._ltStat.textContent) setStatus(ta._ltStat, "", "");
+    const out = S.outs[ta._idx];
+    if (out && !out.classList.contains("hidden") && out._text != null) {
+      const stale = out._text !== ta.value;
+      out.classList.toggle("stale", stale);
+      const st = out.querySelector(".lt-stale"); if (st) st.classList.toggle("hidden", !stale);
+    }
+    if (ta.value !== ta._last) { ta._last = ta.value; if (ta.value.trim()) ta.classList.remove("invalid"); changed(); }
+  }
+  function onDate() {
+    const inp = byId("lb-date"); if (!inp) return;
+    const iso = String(inp.value || "");
+    let err = "", ok = "";
+    if (iso) {
+      if (!isoValid(iso)) err = "Bitte wähle ein gültiges Datum aus.";
+      else if (iso > todayIso()) err = "Das Datum darf nicht in der Zukunft liegen.";
+      else ok = iso;
+    }
+    byId("lb-date-err").textContent = err;
+    inp.classList.toggle("invalid", !!err);
+    byId("lb-date-out").textContent = ok ? labelOf(ok) : "";
+    if (ok !== S.date) { S.date = ok; changed(); }
+  }
+  function changed() { S.seq++; updateProgress(); }
+
+  /* ---------- Fortschritt: alle Aufgaben beantwortet und zusammen mindestens 60 Wörter ---------- */
+  const WORD_RE = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
+  function wordCount() { let n = 0; for (const ta of S.tas) if (ta) n += (ta.value.match(WORD_RE) || []).length; return n; }
+  function missing() {
+    const fields = [];
+    if (!S.date) fields.push({ text: "das Datum bei Aufgabe 1", el: byId("lb-date") });
+    S.tas.forEach((ta, i) => { if (ta && !ta.value.trim()) fields.push({ text: "Aufgabe " + (i + 1), el: ta }); });
+    const words = wordCount();
+    return { fields, words, short: Math.max(0, MIN_WORDS - words), complete: !fields.length && words >= MIN_WORDS };
+  }
+  function missingText(ms) {
+    const parts = [];
+    if (ms.fields.length) parts.push(listJoin(ms.fields.map((f) => f.text)));
+    if (ms.short) parts.push(`${parts.length ? "außerdem fehlen" : "Es fehlen"} noch ${ms.short} ${ms.short === 1 ? "Wort" : "Wörter"} (zusammen mindestens ${MIN_WORDS})`);
+    return "Noch offen: " + parts.join("; ") + ".";
+  }
+  function updateProgress() {
+    if (!S.person) return;
+    const ms = missing(), w = byId("lb-words");
+    w.textContent = ms.words >= MIN_WORDS ? `${ms.words} Wörter – die mindestens ${MIN_WORDS} sind erreicht.`
+      : `Bisher ${ms.words} ${ms.words === 1 ? "Wort" : "Wörter"} – noch ${ms.short} bis zu den mindestens ${MIN_WORDS}.`;
+    w.classList.toggle("ok", ms.words >= MIN_WORDS);
+    byId("lb-final-hint").textContent = ms.complete ? "Alles ausgefüllt – du kannst deine Lerntagebuch-PDF jetzt herunterladen." : missingText(ms);
+    byId("lb-final").setAttribute("aria-disabled", ms.complete ? "false" : "true");
+    if (ms.complete) setStatus(byId("lb-final-status"), "", "");
+    renderSteps(ms.complete ? 1 : 0);
+  }
+  /* Ablauf-Kasten „So gehst du vor“ (wie im Feibeitsblatt): aktueller Schritt fett, aria-current="step" */
+  const STEPS = [
+    ["Aufgaben bearbeiten", " – Datum wählen und zusammen mindestens 60 Wörter schreiben"],
+    ["Lerntagebuch-PDF herunterladen", " – unten unter „Abschluss“"],
+    ["PDF-Datei bei Moodle hochladen", ""]
+  ];
+  function renderSteps(cur) {
+    const ol = byId("lb-steps-list");
+    if (!ol.children.length) STEPS.forEach(([t, note]) => ol.appendChild(h("li", null, [t, note ? h("span", { class: "step-note", text: note }) : null])));
+    Array.prototype.forEach.call(ol.children, (li, k) => {
+      li.classList.toggle("cur", k === cur);
+      if (k === cur) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+    });
+  }
+
+  /* ---------- Hintergrunddaten und PDF (über die Engine) ----------
+   * Baut Text, Format und Blockstruktur genau so, wie serializeEditor() der Engine sie für den bisherigen Lerntagebuch-Editor
+   * lieferte: je Frage ein Aufgabenblock (Art 1, Systemtext, fett; bei Frage 1 mit der Datumszeile „Wochentag, TT.MM.JJJJ“),
+   * dahinter je Antwortzeile ein Block (Art 0). Trenner zwischen Blöcken: „\n“ als Systemtext neben einem Aufgabenblock, sonst
+   * der getippte Zeilenumbruch der Antwort. Dazu je UTF-16-Einheit ein Eintrag für recs (Quelle, Abstand g). */
+  function serializeAnswers() {
+    const chars = [], fmt = [], blocks = [], rr = [];
+    const SYS_TASK = { b: true, i: false, u: false, h: false, s: true }, SYS = { b: false, i: false, u: false, h: false, s: true }, BASE = { b: false, i: false, u: false, h: false, s: false };
+    const push = (ch, st, rec) => { chars.push(ch); fmt.push({ b: st.b, i: st.i, u: st.u, h: st.h, s: st.s }); rr.push(rec); };
+    const sysRec = () => ({ src: "s", t: -1 });
+    QUESTIONS.forEach((q, i) => {
+      if (blocks.length) push("\n", SYS, sysRec());
+      const qt = i === 0 && S.date ? q + "\n" + labelOf(S.date) : q;
+      for (let k = 0; k < qt.length; k++) push(qt[k], SYS_TASK, sysRec());
+      blocks.push([1, qt.length, 0]);
+      const ta = S.tas[i], ans = ta ? ta.value : "", gaps = ta ? gapsOf(ta) : [];
+      const lines = ans.split("\n");
+      let pos = 0;
+      lines.forEach((line, li) => {
+        if (li === 0) push("\n", SYS, sysRec());
+        else push("\n", BASE, { src: "t", t: -1, g: gaps[pos - 1] });
+        for (let k = 0; k < line.length; k++) push(line[k], BASE, { src: "t", t: -1, g: gaps[pos + k] });
+        blocks.push([0, line.length, 0]);
+        pos += line.length + 1;
+      });
+    });
+    return { text: chars.join(""), fmt, blocks, recs: rr };
+  }
+  async function buildFile(interim) {
+    const p = S.person, ser = serializeAnswers(), name = (p.vn + " " + p.nn).trim();
+    let payload;
+    escapeMode = false;                       // Engine-Zustand: kein Escape-Room
+    recs = ser.recs;                          // buildPayload der Engine liest die Marken je Zeichen aus recs
+    try { payload = buildPayload(name, { text: ser.text, fmt: ser.fmt, blocks: ser.blocks }, p.vn, p.nn, !!interim); }
+    finally { recs = []; }
+    payload.ltb = 1;                          // Kennung: Lerntagebuch in Aufgabenform (nur damit lässt sich ein Zwischenstand wieder laden)
+    payload.kl = p.kl;                        // Klasse (für das Weiterarbeiten; der Check liest sie nicht)
+    const bundle = await aesEncrypt(JSON.stringify(payload), _kf(p.vn));
+    const pdfStr = buildPdf({ name: name + " · Klasse " + p.kl, text: ser.text, fmt: ser.fmt, trackB64: bundle });
+    const u8 = new Uint8Array(pdfStr.length);
+    for (let i = 0; i < pdfStr.length; i++) u8[i] = pdfStr.charCodeAt(i) & 0xff;
+    studentVorname = p.vn; studentNachname = p.nn;   // Dateinamen der Engine lesen diese beiden
+    const fileName = interim ? interimPdfName() : (typeof CFG.pdfName === "function" ? CFG.pdfName(p.vn, p.nn) : makePdfName());
+    return { blob: new Blob([u8], { type: "application/pdf" }), name: fileName };
+  }
+  function dropFinal() { if (S.final && S.final.url) { try { URL.revokeObjectURL(S.final.url); } catch (e) { /* egal */ } } S.final = null; }
+
+  /* „Lerntagebuch-PDF herunterladen“ – nur, wenn alles ausgefüllt ist */
+  async function onFinal() {
+    const st = byId("lb-final-status"), btn = byId("lb-final");
+    if (S.building) return;
+    const ms = missing();
+    if (!ms.complete) {
+      setStatus(st, "Die PDF-Datei lässt sich erst herunterladen, wenn alles ausgefüllt ist. " + missingText(ms), "bad");
+      ms.fields.forEach((f) => { if (f.el && f.el.tagName === "TEXTAREA") f.el.classList.add("invalid"); });
+      if (ms.fields.length) focusEl(ms.fields[0].el, true);
+      return;
+    }
+    setStatus(st, "", "");
+    if (!(S.final && S.final.seq === S.seq)) {   // unverändert seit dem letzten Herunterladen → genau dieselbe Datei
+      S.building = true; busy(btn, true, "PDF-Datei wird erstellt …");
+      const run = S.run;
+      try {
+        const f = await buildFile(false);
+        if (run !== S.run) return;
+        dropFinal();
+        S.final = { seq: S.seq, blob: f.blob, name: f.name, url: URL.createObjectURL(f.blob) };
+      } catch (e) {
+        console.warn("PDF nicht erstellt:", e && e.message);
+        setStatus(st, "Die PDF-Datei ließ sich nicht erstellen. Bitte versuche es noch einmal.", "bad");
+        return;
+      } finally { S.building = false; busy(btn, false); }
+    }
+    S.savedSeq = S.seq;
+    const a = byId("lb-done-again");
+    a.href = S.final.url; a.download = S.final.name;
+    byId("lb-done-file").textContent = S.final.name;
+    showView("lb-done");
+    a.click();                                   // herunterladen; der Link bleibt für einen zweiten Versuch stehen
+    focusEl(byId("lb-done-h"));
+  }
+  /* „Zwischenstand als PDF-Datei sichern“ – jederzeit */
+  async function onInterim() {
+    const btn = byId("lb-interim"), st = byId("lb-save-state");
+    if (S.building) return;
+    S.building = true; busy(btn, true, "Zwischenstand wird erstellt …");
+    const run = S.run, seq = S.seq;
+    try {
+      const f = await buildFile(true);
+      if (run !== S.run) return;
+      downloadBlob(f.blob, f.name);
+      S.savedSeq = seq;
+      const d = new Date();
+      setStatus(st, `Zwischenstand gesichert (${pad2(d.getHours())}:${pad2(d.getMinutes())} Uhr). Bei Moodle lädst du später nur die fertige Lerntagebuch-PDF hoch.`, "ok");
+    } catch (e) {
+      console.warn("Zwischenstand nicht erstellt:", e && e.message);
+      setStatus(st, "Der Zwischenstand ließ sich nicht erstellen. Bitte versuche es noch einmal.", "bad");
+    } finally { S.building = false; busy(btn, false); }
+  }
+
+  /* ---------- Zwischenstand-PDF laden ----------
+   * Nur PDFs aus diesem Lerntagebuch (Kennung ltb) – ältere Lerntagebuch-PDFs und andere Feiditor-PDFs nicht. */
+  function parseLtbPayload(p) {
+    if (!p || typeof p !== "object" || p.ltb !== 1) return { error: "old" };
+    const t = p.t, m = p.m, k = p.k, bad = { error: "bad" };
+    if (typeof t !== "string" || t.length > MAX_T || !Array.isArray(m) || m.length !== t.length || !Array.isArray(k) || p.v !== 2) return bad;
+    const blocks = []; let pos = 0;
+    for (let b = 0; b < k.length; b++) {
+      const e = k[b];
+      if (!Array.isArray(e) || (e[0] !== 0 && e[0] !== 1) || !Number.isInteger(e[1]) || e[1] < 0 || e[2] !== 0) return bad;
+      if (b > 0) { if (t[pos] !== "\n") return bad; pos++; }
+      blocks.push({ kind: e[0], start: pos, end: pos + e[1] }); pos += e[1];
+      if (pos > t.length) return bad;
+    }
+    if (pos !== t.length) return bad;
+    const groups = [];
+    for (const bl of blocks) {
+      if (bl.kind === 1) { if (groups.length >= N) return bad; groups.push({ task: bl, ans: [] }); }
+      else { if (!groups.length) return bad; groups[groups.length - 1].ans.push(bl); }
+    }
+    if (groups.length !== N || groups.some((g) => !g.ans.length)) return bad;
+    let date = "";
+    const answers = [], gaps = [];
+    for (let i = 0; i < N; i++) {
+      const g = groups[i], qt = t.slice(g.task.start, g.task.end);
+      if (i === 0 && qt !== QUESTIONS[0]) {
+        if (qt.slice(0, QUESTIONS[0].length + 1) !== QUESTIONS[0] + "\n") return bad;
+        const lab = qt.slice(QUESTIONS[0].length + 1), iso = isoOfLabel(lab);
+        if (!LABEL_RE.test(lab) || !iso || labelOf(iso) !== lab) return bad;
+        date = iso;
+      } else if (i > 0 && qt !== QUESTIONS[i]) return bad;
+      const s = g.ans[0].start, e = g.ans[g.ans.length - 1].end, text = t.slice(s, e);
+      if ((i === 0 && text !== "") || text.length > MAX_ANSWER) return bad;
+      answers.push(text);
+      gaps.push(m.slice(s, e).map((x) => (Array.isArray(x) && typeof x[1] === "number" && isFinite(x[1]) ? Math.round(x[1]) : -1)));
+    }
+    const str = (v, n) => (typeof v === "string" ? v : "").slice(0, n);
+    return { person: { vn: cleanName(str(p.vn, 40)), nn: cleanName(str(p.nn, 60)), kl: normKlasse(str(p.kl, 10)) }, date, answers, gaps, interim: p.z === 1 };
+  }
+  async function readResume(file) {
+    const err = byId("lb-resume-err"), btn = byId("lb-resume-btn");
+    err.textContent = ""; byId("lb-start-err").textContent = ""; byId("lb-start-note").textContent = "";
+    if (!file) return;
+    if (file.size > PDF_MAX_BYTES) { err.textContent = "Diese Datei ist zu groß für einen Zwischenstand aus dem Lerntagebuch-Feiditor."; return; }
+    busy(btn, true, "Wird gelesen …");
+    try {
+      let str;
+      try { str = await readAsBinaryStr(file); } catch (e) { err.textContent = "Die Datei ließ sich nicht lesen. Bitte versuche es noch einmal."; return; }
+      if (str.slice(0, 5) !== "%PDF-") { err.textContent = "Das ist keine PDF-Datei. Lade bitte deine Zwischenstand-PDF aus dem Lerntagebuch-Feiditor hoch."; return; }
+      const tm = pdfMarker(str, "TRACKDATA");
+      if (!tm) {
+        err.textContent = pdfMarker(str, "ESCAPEDATA")
+          ? "Das ist die Überblick-PDF aus einem Escape-Room. Lade sie bitte auf https://feiditor.janrickmer.de/ hoch."
+          : "In dieser PDF-Datei steckt kein Zwischenstand aus dem Lerntagebuch-Feiditor.";
+        return;
+      }
+      let payload;
+      try { payload = (await autoDecrypt(tm[1])).payload; }
+      catch (e) { err.textContent = "Diese PDF-Datei ließ sich nicht lesen. Lade bitte die unveränderte Datei hoch, die du hier gesichert hast."; return; }
+      const st = parseLtbPayload(payload);
+      if (st.error === "old") { err.textContent = "Diese PDF-Datei stammt aus einer älteren Version des Lerntagebuch-Feiditors oder aus einem anderen Feiditor und lässt sich hier nicht laden. Beginne bitte einen neuen Eintrag."; return; }
+      if (st.error) { err.textContent = "Diese PDF-Datei ist beschädigt oder wurde verändert. Lade bitte die unveränderte Datei hoch, die du hier gesichert hast."; return; }
+      byId("lb-vorname").value = st.person.vn; byId("lb-nachname").value = st.person.nn; byId("lb-klasse").value = st.person.kl;
+      const bad = checkPerson(st.person.vn, st.person.nn, st.person.kl);
+      if (bad) {   // Angaben unvollständig: ergänzen lassen, dann mit dem Zwischenstand öffnen
+        S.pending = st;
+        setStatus(byId("lb-start-note"), "Dein Zwischenstand ist gelesen. Bitte prüfe noch deine Angaben und klicke dann auf „Schreibbereich öffnen“.", "");
+        showPersonError(bad);
+        return;
+      }
+      openEditor(st.person, st);
+    } finally { busy(btn, false); }
+  }
+
+  /* ---------- Start, Schreibbereich, Abschluss ---------- */
+  function showPersonError(bad) {
+    ["lb-vorname", "lb-nachname", "lb-klasse"].forEach((id) => byId(id).classList.toggle("invalid", id === bad.field));
+    byId("lb-start-err").textContent = bad.msg;
+    focusEl(byId(bad.field));
+  }
+  function onStart() {
+    const vn = cleanName(byId("lb-vorname").value), nn = cleanName(byId("lb-nachname").value), kl = normKlasse(byId("lb-klasse").value);
+    const bad = checkPerson(vn, nn, kl);
+    if (bad) { showPersonError(bad); return; }
+    ["lb-vorname", "lb-nachname", "lb-klasse"].forEach((id) => byId(id).classList.remove("invalid"));
+    byId("lb-start-err").textContent = "";
+    const st = S.pending; S.pending = null;
+    openEditor({ vn, nn, kl }, st);
+  }
+  function openEditor(person, restored) {
+    S.run = (S.run || 0) + 1;
+    S.person = person; S.date = "";
+    S.ltConsent = false; S.ltDeclined = false; S.ltCache.clear();
+    dropFinal();
+    byId("lb-vorname").value = person.vn; byId("lb-nachname").value = person.nn; byId("lb-klasse").value = person.kl;
+    byId("lb-start-note").textContent = ""; byId("lb-resume-err").textContent = "";
+    byId("lb-who").textContent = person.vn + " " + person.nn + " · Klasse " + person.kl;
+    buildTasks();
+    if (restored) {
+      if (restored.date) { byId("lb-date").value = restored.date; S.date = restored.date; byId("lb-date-out").textContent = labelOf(restored.date); }
+      S.tas.forEach((ta, i) => {
+        if (!ta) return;
+        ta.value = restored.answers[i];
+        ta._tt = ttNew(ta.value, restored.gaps[i]); ta._ok = ta.value; ta._last = ta.value;
+        updateCounter(ta);
+      });
+    }
+    S.seq = 0; S.savedSeq = 0;
+    const note = byId("lb-ed-note");
+    note.textContent = restored ? (restored.interim ? "Dein Zwischenstand ist geladen – du kannst direkt weiterschreiben." : "Deine Lerntagebuch-PDF ist geladen – du kannst direkt weiterschreiben. Lade danach nur die neue Datei bei Moodle hoch.") : "";
+    note.classList.toggle("hidden", !restored);
+    setStatus(byId("lb-save-state"), "", ""); setStatus(byId("lb-final-status"), "", "");
+    byId("lb-steps-list").textContent = "";
+    showView("lb-editor");
+    byId("lb-paperwrap").scrollTop = 0;
+    updateProgress();
+    growAll();
+    const first = !S.date ? byId("lb-date") : S.tas.find((ta) => ta && !ta.value.trim()) || S.tas.find(Boolean);
+    focusSoon(first);
+  }
+  function hasContent() { return !!(S.person && (S.date || S.tas.some((ta) => ta && ta.value.trim()))); }
+  const unsaved = () => hasContent() && S.seq !== S.savedSeq;
+  function leaveToStart() {
+    S.run = (S.run || 0) + 1;
+    S.person = null; S.date = ""; S.tas = []; S.outs = []; S.pending = null;
+    dropFinal();
+    byId("lb-tasks").textContent = ""; byId("lb-steps-list").textContent = "";
+    showView("lb-start");
+    focusEl(byId("lb-start-btn"));
+  }
+  async function onCancel() {
+    if (unsaved()) {
+      const ok = await askConfirm({
+        title: "Eintrag verwerfen?",
+        text: "Deine Antworten werden verworfen. Diese Seite speichert nichts im Browser – hast du sie nicht als Zwischenstand-PDF oder als fertige Lerntagebuch-PDF heruntergeladen, sind sie danach weg.",
+        ok: "Verwerfen und neu beginnen", cancel: "Weiterschreiben", danger: true
+      });
+      if (ok !== true) return;
+    }
+    leaveToStart();
+  }
+
+  byId("lb-start-btn").addEventListener("click", onStart);
+  [["lb-vorname", "lb-nachname"], ["lb-nachname", "lb-klasse"]].forEach(([a, b]) => byId(a).addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); byId(b).focus(); } }));
+  byId("lb-klasse").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); onStart(); } });
+  byId("lb-resume-btn").addEventListener("click", () => byId("lb-resume-file").click());
+  byId("lb-resume-file").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) readResume(f); });
+  byId("lb-final").addEventListener("click", onFinal);
+  byId("lb-interim").addEventListener("click", onInterim);
+  byId("lb-cancel").addEventListener("click", onCancel);
+  byId("lb-done-back").addEventListener("click", () => { showView("lb-editor"); growAll(); focusSoon(byId("lb-final")); });
+  byId("lb-done-new").addEventListener("click", leaveToStart);
+  // Warnung beim Schließen oder Neuladen, solange etwas nicht als PDF-Datei heruntergeladen ist (die Seite speichert nichts)
+  window.addEventListener("beforeunload", (e) => { if (unsaved()) { e.preventDefault(); e.returnValue = ""; } });
+  focusSoon(byId("lb-vorname"), 30);
 })();
 </script>
 </body>
