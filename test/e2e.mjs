@@ -115,6 +115,8 @@ const ri = summary(await analyze(interim.name, interim.bytes));
 console.log("    Check:", JSON.stringify(ri));
 ok(ri.kind === "lerntagebuch" && ri.interim === true && !ri.interimMismatch && !ri.err, "Check: Lerntagebuch, Zwischenstand");
 ok((await page.textContent("#lb-save-state")).startsWith("Zwischenstand gesichert"), "Status nach dem Sichern");
+await page.type("#lb-a-5", "!", { delay: 50 }); await page.keyboard.press("Backspace");
+ok((await page.textContent("#lb-save-state")).includes("seitdem geändert"), "Status nach einer Änderung: seitdem geändert", await page.textContent("#lb-save-state"));
 
 console.log("8. Restliche Wörter und fertige PDF");
 await page.type("#lb-a-4", " Außerdem möchte ich verstehen, warum manche Menschen nicht wählen gehen und was man dagegen tun kann.", { delay: 40 });
@@ -128,6 +130,9 @@ const today = new Date(); const p2 = (n) => String(n).padStart(2, "0");
 ok(fin.name === `Lerntagebucheintrag_Max_Muster-Mann_${p2(today.getDate())}${p2(today.getMonth() + 1)}${today.getFullYear()}.pdf`, "Dateiname wie bisher", fin.name);
 ok(await page.isVisible("#lb-done"), "Abschlussseite");
 ok((await page.textContent("#lb-done-file")) === fin.name, "Dateiname auf der Abschlussseite");
+await page.click("#lb-done-new");   // direkt nach dem Wechsel (z. B. zweiter Klick eines Doppelklicks): wirkungslos
+ok(await page.isVisible("#lb-done"), "Klick direkt nach dem Wechsel auf die Abschlussseite wird ignoriert");
+await page.waitForTimeout(550);
 const rf = await analyze(fin.name, fin.bytes); const sf = summary(rf);
 console.log("    Check:", JSON.stringify(sf));
 ok(sf.kind === "lerntagebuch" && sf.interim === false && !sf.err && !sf.ltbAdded && !sf.interimMismatch && !sf.redWarn, "Check: fertiger Lerntagebuch-Eintrag ohne Warnungen");
@@ -155,19 +160,20 @@ ok(pdfStr.startsWith("%PDF-1.7\n") && /\n%TRACKDATA [^\n]+\n1 0 obj/.test(pdfStr
 ok(pdfStr.includes("(Max Muster-Mann \xB7 Klasse 8b) Tj"), "PDF: Name und Klasse oben sichtbar");
 
 console.log("9. Dieselbe Datei erneut, zurück zur Bearbeitung");
+await page.waitForTimeout(550);
 const again = await download(() => page.click("#lb-done-again"));
 ok(Buffer.compare(Buffer.from(again.bytes), Buffer.from(fin.bytes)) === 0, "erneuter Download = byte-gleiche Datei");
-await page.click("#lb-done-back");
+await page.waitForTimeout(550); await page.click("#lb-done-back");
 ok(await page.isVisible("#lb-editor") && (await page.inputValue("#lb-a-5")).includes("kontrolliert"), "zurück zur Bearbeitung, Text erhalten");
 const fin2 = await download(() => page.click("#lb-final"));
 ok(Buffer.compare(Buffer.from(fin2.bytes), Buffer.from(fin.bytes)) === 0, "ohne Änderung wieder dieselbe Datei");
-await page.click("#lb-done-back");
+await page.waitForTimeout(550); await page.click("#lb-done-back");
 await page.type("#lb-a-5", " Ergänzung.", { delay: 80 });
 const fin3 = await download(() => page.click("#lb-final"));
 ok(Buffer.compare(Buffer.from(fin3.bytes), Buffer.from(fin.bytes)) !== 0, "nach einer Änderung eine neue Datei");
 
 console.log("10. Warnung beim Verlassen");
-await page.click("#lb-done-back");
+await page.waitForTimeout(550); await page.click("#lb-done-back");
 await page.type("#lb-a-5", " Noch etwas", { delay: 50 });
 
 const bu = () => page.evaluate(() => { const e = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; });
@@ -223,12 +229,19 @@ ok(await p3.isVisible("#lb-start"), "bleibt auf der Startseite");
 console.log("13. Abbrechen und neu beginnen");
 await page.click("#lb-cancel");
 await page.waitForSelector("#lb-dlg.open");
+await page.waitForTimeout(60);
+for (const k of ["Shift+Tab", "Shift+Tab", "Shift+Tab", "Tab", "Tab", "Tab"]) await page.keyboard.press(k);
+ok(await page.evaluate(() => document.getElementById("lb-dlg").contains(document.activeElement)), "Fokus bleibt im Dialog");
+ok(await page.evaluate(() => document.getElementById("lb-editor").hasAttribute("inert")), "Hintergrund während des Dialogs inert");
 await page.click("#lb-dlg-cancel");
 ok(await page.isVisible("#lb-editor"), "„Weiterschreiben“ bleibt im Schreibbereich");
 await page.click("#lb-cancel"); await page.click("#lb-dlg-ok");
 ok(await page.isVisible("#lb-start") && (await page.inputValue("#lb-vorname")) === "Max", "verworfen, Angaben bleiben im Startformular");
 
 console.log("14. Allgemein");
+const ax = await page.evaluate(() => ["lb-start-err", "lb-resume-err", "lb-start-note"].map((id) => getComputedStyle(document.getElementById(id)).display));
+ok(ax.every((d) => d !== "none"), "leere Meldungsbereiche bleiben im Barrierefreiheitsbaum", ax);
+ok(await page.evaluate(() => getComputedStyle(document.getElementById("foot-teacher")).display) === "none", "verborgener Engine-Link bleibt verborgen");
 ok(errs.length === 0, "keine Skriptfehler", errs);
 ok(otherReqs.every((u) => u.startsWith("https://api.languagetool.org/")), "keine anderen Verbindungen nach außen", otherReqs);
 ok((await page.evaluate(() => window.__csp)).length === 0, "keine CSP-Verletzung", await page.evaluate(() => window.__csp));

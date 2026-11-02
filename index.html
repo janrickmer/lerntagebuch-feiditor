@@ -74,7 +74,7 @@
   .btn[aria-disabled="true"]{opacity:.55; transform:none}
   .btn[aria-disabled="true"]:hover{background:var(--ink)}
   .err{color:var(--red); font-size:13.5px; margin:2px 0 0}
-  .err:empty{display:none}
+  .err:empty{margin:0}   /* leer, aber im Barrierefreiheitsbaum: sonst wird die Meldung nicht zuverlässig angesagt */
   .backlink{
     display:inline-block; margin:18px 0 0; padding:0; border:0; background:none; cursor:pointer;
     color:var(--muted); font-family:var(--sans); font-size:13px; text-decoration:none;
@@ -87,7 +87,7 @@
   .linkbtn:hover{color:var(--red)}
   .linkbtn:disabled{opacity:.55; cursor:default}
   .status{font-size:13.5px; margin:10px 0 0; color:var(--muted)}
-  .status:empty{display:none}
+  .status:empty{margin:0}
   .status.ok{color:var(--green)}
   .status.bad{color:var(--red)}
   .spinner{display:inline-block; width:12px; height:12px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-2px; margin-right:7px}
@@ -96,7 +96,7 @@
   .pdfrow .fhint{margin:6px 0 0}
   .startpriv{font-size:12px; color:var(--muted); line-height:1.5; margin:18px 0 0}
   .notebox{margin:0 0 16px; padding:12px 16px; background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; font-size:14px; line-height:1.5}
-  .notebox:empty{display:none}
+  .notebox:empty{margin:0; padding:0; border:0}
   .done-check{width:104px; height:104px; margin:6px auto 2px; display:block}
   .done-check circle{fill:var(--green)}
   .done-check path{fill:none; stroke:#fff; stroke-width:7; stroke-linecap:round; stroke-linejoin:round}
@@ -135,9 +135,8 @@
   .topbar .right{display:flex; flex-direction:column; align-items:flex-end; text-align:right; min-width:0; max-width:100%}
   .stitle{font-family:var(--serif); font-size:15px; font-weight:600}
   .count{font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums}
-  .count:empty{display:none}
   .count.ok{color:var(--green)}
-  .topbar .linkbtn{margin-top:2px}
+  .topbar .linkbtn{margin-top:2px; min-height:24px; padding:3px 0}   /* Zielgröße ≥ 24 px (WCAG 2.2, 2.5.8) */
   .paperwrap{
     flex:1 1 auto; min-height:0; overflow:auto; display:flex; flex-direction:column; align-items:center; padding:34px 20px 60px;
     -webkit-overflow-scrolling:touch; overscroll-behavior:contain; scrollbar-gutter:stable;
@@ -227,6 +226,7 @@
   body.writing .copyright{padding:5px 16px 7px; border-top:1px solid var(--line); background:var(--paper)}
   .copyright a{pointer-events:auto; color:var(--muted); display:inline-block; padding:4px 2px; margin:-4px 0}
   .copyright a:hover{color:var(--accent)}
+  .copyright a[hidden]{display:none}   /* verborgener Link der Engine (#foot-teacher) bleibt verborgen */
 
   /* ---------- Bestätigungsdialog ---------- */
   .modal{position:fixed; inset:0; background:rgba(34,31,26,.45); display:none; z-index:30; overflow:auto; padding:30px 16px}
@@ -265,26 +265,26 @@
       <p class="notebox" id="lb-start-note" role="status"></p>
       <div class="field">
         <label for="lb-vorname">Vorname</label>
-        <input type="text" id="lb-vorname" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+        <input type="text" id="lb-vorname" maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="lb-start-err">
       </div>
       <div class="field">
         <label for="lb-nachname">Nachname</label>
-        <input type="text" id="lb-nachname" maxlength="60" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next">
+        <input type="text" id="lb-nachname" maxlength="60" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="lb-start-err">
       </div>
       <div class="field">
         <label for="lb-klasse">Klasse</label>
-        <input type="text" id="lb-klasse" maxlength="10" placeholder="z. B. 8b" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-describedby="lb-klasse-hint">
+        <input type="text" id="lb-klasse" maxlength="10" placeholder="z. B. 8b" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-describedby="lb-klasse-hint lb-start-err">
         <p class="fhint" id="lb-klasse-hint">z. B. 8b oder E1. Name und Klasse stehen später oben in deiner PDF-Datei.</p>
       </div>
       <p class="err" id="lb-start-err" aria-live="polite"></p>
       <button type="button" class="btn block" id="lb-start-btn">Schreibbereich öffnen</button>
       <div class="pdfrow">
-        <button type="button" class="btn ghost small" id="lb-resume-btn" aria-describedby="lb-resume-hint">Zwischenstand-PDF hochladen</button>
+        <button type="button" class="btn ghost small" id="lb-resume-btn" aria-describedby="lb-resume-hint lb-resume-err">Zwischenstand-PDF hochladen</button>
         <input type="file" id="lb-resume-file" class="sr-only" accept="application/pdf,.pdf" tabindex="-1" aria-hidden="true">
         <p class="fhint" id="lb-resume-hint">Hast du deinen Zwischenstand als PDF-Datei gesichert, kannst du ihn hier hochladen und weiterarbeiten.</p>
         <p class="err" id="lb-resume-err" aria-live="polite"></p>
       </div>
-      <p class="startpriv" id="lb-start-privacy">Diese Seite schickt deine Angaben und Antworten an keinen Server und speichert sie nicht im Browser – sie stehen nur in der PDF-Datei, die du selbst herunterlädst. Nur wenn du die freiwillige Rechtschreibprüfung nutzt, geht der Text der jeweiligen Antwort an LanguageTool. Beim Schreiben hält diese Seite fest, wie dein Text entsteht (Tippzeiten); das steht verschlüsselt in deiner PDF-Datei. Mehr unter „Impressum &amp; Datenschutz“ ganz unten auf der Seite.</p>
+      <p class="startpriv" id="lb-start-privacy">Diese Seite schickt deine Angaben und Antworten an keinen Server und speichert sie nicht im Browser – sie stehen nur in der PDF-Datei, die du selbst herunterlädst. Nutzt du die freiwillige Rechtschreibprüfung, geht der Text der jeweiligen Antwort an LanguageTool. Beim Schreiben hält diese Seite fest, wie dein Text entsteht (Tippzeiten); das steht verschlüsselt in deiner PDF-Datei. Mehr unter „Impressum &amp; Datenschutz“ ganz unten auf der Seite.</p>
     </div>
     <div class="infobox">
       <h2 class="ib-title">Lerntagebuch (freiwillig)</h2>
@@ -2015,6 +2015,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     return n;
   }
   const pad2 = (n) => String(n).padStart(2, "0");
+  const hhmm = () => { const d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
   function listJoin(a) { return a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " und " + a[a.length - 1]; }
   function setStatus(node, text, kind) {
     node.textContent = "";
@@ -2044,7 +2045,9 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
   }
   function focusEl(el, scroll) {
     if (!el) return;
+    const pw = byId("lb-paperwrap"), st = pw ? pw.scrollTop : 0;
     try { el.focus({ preventScroll: !scroll }); } catch (e) { try { el.focus(); } catch (x) { /* egal */ } }
+    if (!scroll && pw && pw.scrollTop !== st) pw.scrollTop = st;   // Chromium scrollt bei Datumsfeldern trotz preventScroll
     if (scroll) { try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { /* egal */ } }
   }
 
@@ -2110,26 +2113,32 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
       byId("lb-dlg-cancel").textContent = o.cancel || "Abbrechen";
       byId("lb-dlg-ok").className = "btn" + (o.danger ? " danger" : "");
       byId("lb-dlg").classList.add("open");
+      bgInert(true);
       setTimeout(() => (o.danger || o.safeFirst ? byId("lb-dlg-cancel") : byId("lb-dlg-ok")).focus(), 20);
     });
   }
   function closeDlg(val) {
     if (!dlgResolve) return;
     byId("lb-dlg").classList.remove("open");
+    bgInert(false);
     const r = dlgResolve; dlgResolve = null;
     try { if (dlgReturn && dlgReturn.focus) dlgReturn.focus(); } catch (e) { /* egal */ }
     r(val);
   }
   byId("lb-dlg-ok").addEventListener("click", () => closeDlg(true));
   byId("lb-dlg-cancel").addEventListener("click", () => closeDlg(false));
-  byId("lb-dlg").addEventListener("keydown", (e) => {
+  // Solange der Dialog offen ist: Esc und Tab auf Dokumentebene (auch wenn der Fokus irgendwie draußen ist), Hintergrund inert
+  document.addEventListener("keydown", (e) => {
+    if (!dlgResolve) return;
+    const a = byId("lb-dlg-cancel"), b = byId("lb-dlg-ok"), inside = byId("lb-dlg").contains(document.activeElement);
     if (e.key === "Escape") { e.preventDefault(); closeDlg(false); }
-    else if (e.key === "Tab") {   // Fokus im Dialog halten
-      const a = byId("lb-dlg-cancel"), b = byId("lb-dlg-ok");
-      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); }
+    else if (e.key === "Tab") {
+      if (!inside) { e.preventDefault(); (e.shiftKey ? b : a).focus(); }
+      else if (e.shiftKey && document.activeElement === a) { e.preventDefault(); b.focus(); }
       else if (!e.shiftKey && document.activeElement === b) { e.preventDefault(); a.focus(); }
     }
-  });
+  }, true);
+  function bgInert(on) { document.querySelectorAll(".view.active, #pagefoot").forEach((el) => { if (on) el.setAttribute("inert", ""); else el.removeAttribute("inert"); }); }
   byId("lb-dlg").addEventListener("click", (e) => { if (e.target === byId("lb-dlg") && Date.now() - dlgOpenedAt > 400) closeDlg(dlgBackdrop); });
 
   /* ---------- Mitwachsende Antwortfelder ---------- */
@@ -2488,7 +2497,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
       const n = i + 1;
       if (i === 0) {   // Aufgabe 1: Datum per Kalenderfeld (kein Textfeld)
         const inp = h("input", { type: "date", id: "lb-date", max: todayIso(), min: "2000-01-01", required: true, "aria-describedby": "lb-q-1 lb-date-err" });
-        inp.addEventListener("change", onDate); inp.addEventListener("input", onDate);
+        inp.addEventListener("change", onDate); inp.addEventListener("input", onDate); inp.addEventListener("blur", onDate);
         box.appendChild(h("section", { class: "task", id: "lb-t-1", "aria-labelledby": "lb-l-1" }, [
           h("div", { class: "task-q" }, [h("span", { class: "task-label", id: "lb-l-1", text: "Aufgabe 1" }), h("div", { class: "task-text", id: "lb-q-1", text: shownQuestion(q) })]),
           h("div", { class: "datebox" }, [h("label", { for: "lb-date", text: "Datum auswählen" }), inp, h("span", { class: "date-out", id: "lb-date-out" })]),
@@ -2536,21 +2545,32 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     }
     if (ta.value !== ta._last) { ta._last = ta.value; if (ta.value.trim()) ta.classList.remove("invalid"); changed(); }
   }
-  function onDate() {
+  function onDate(e) {
     const inp = byId("lb-date"); if (!inp) return;
     const iso = String(inp.value || "");
+    // Tippt jemand das Jahr ein, liefert Chromium zwischendurch „0002-…“: solange das Feld den Fokus hat, noch nicht melden
+    const typing = !!e && e.type !== "blur" && document.activeElement === inp && /^0/.test(iso);
     let err = "", ok = "";
-    if (iso) {
+    if (iso && !typing) {
       if (!isoValid(iso)) err = "Bitte wähle ein gültiges Datum aus.";
       else if (iso > todayIso()) err = "Das Datum darf nicht in der Zukunft liegen.";
       else ok = iso;
     }
-    byId("lb-date-err").textContent = err;
+    const ee = byId("lb-date-err"); if (ee.textContent !== err) ee.textContent = err;
     inp.classList.toggle("invalid", !!err);
+    if (err) inp.setAttribute("aria-invalid", "true"); else inp.removeAttribute("aria-invalid");
     byId("lb-date-out").textContent = ok ? labelOf(ok) : "";
     if (ok !== S.date) { S.date = ok; changed(); }
   }
-  function changed() { S.seq++; updateProgress(); }
+  function changed() { S.seq++; updateProgress(); saveState(); }
+  function saveState() {   // Statuszeile oben rechts: wann zuletzt gesichert, und ob seitdem etwas geändert wurde
+    if (!S.savedAt) return;
+    const txt = S.seq !== S.savedSeq ? `Zuletzt um ${S.savedAt} Uhr heruntergeladen – seitdem geändert.`
+      : S.savedKind === "final" ? `Lerntagebuch-PDF heruntergeladen (${S.savedAt} Uhr).`
+      : `Zwischenstand gesichert (${S.savedAt} Uhr). Bei Moodle lädst du später nur die fertige Lerntagebuch-PDF hoch.`;
+    const st = byId("lb-save-state");
+    if (st.textContent !== txt) setStatus(st, txt, S.seq === S.savedSeq ? "ok" : "");
+  }
 
   /* ---------- Fortschritt: alle Aufgaben beantwortet und zusammen mindestens 60 Wörter ---------- */
   const WORD_RE = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
@@ -2655,22 +2675,23 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     setStatus(st, "", "");
     if (!(S.final && S.final.seq === S.seq)) {   // unverändert seit dem letzten Herunterladen → genau dieselbe Datei
       S.building = true; busy(btn, true, "PDF-Datei wird erstellt …");
-      const run = S.run;
+      const run = S.run, seq = S.seq;
       try {
         const f = await buildFile(false);
         if (run !== S.run) return;
         dropFinal();
-        S.final = { seq: S.seq, blob: f.blob, name: f.name, url: URL.createObjectURL(f.blob) };
+        S.final = { seq, blob: f.blob, name: f.name, url: URL.createObjectURL(f.blob) };
       } catch (e) {
         console.warn("PDF nicht erstellt:", e && e.message);
         setStatus(st, "Die PDF-Datei ließ sich nicht erstellen. Bitte versuche es noch einmal.", "bad");
         return;
       } finally { S.building = false; busy(btn, false); }
     }
-    S.savedSeq = S.seq;
+    S.savedSeq = S.final.seq; S.savedAt = hhmm(); S.savedKind = "final"; saveState();
     const a = byId("lb-done-again");
     a.href = S.final.url; a.download = S.final.name;
     byId("lb-done-file").textContent = S.final.name;
+    S.doneAt = Date.now();
     showView("lb-done");
     a.click();                                   // herunterladen; der Link bleibt für einen zweiten Versuch stehen
     focusEl(byId("lb-done-h"));
@@ -2685,9 +2706,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
       const f = await buildFile(true);
       if (run !== S.run) return;
       downloadBlob(f.blob, f.name);
-      S.savedSeq = seq;
-      const d = new Date();
-      setStatus(st, `Zwischenstand gesichert (${pad2(d.getHours())}:${pad2(d.getMinutes())} Uhr). Bei Moodle lädst du später nur die fertige Lerntagebuch-PDF hoch.`, "ok");
+      S.savedSeq = seq; S.savedAt = hhmm(); S.savedKind = "interim"; saveState();
     } catch (e) {
       console.warn("Zwischenstand nicht erstellt:", e && e.message);
       setStatus(st, "Der Zwischenstand ließ sich nicht erstellen. Bitte versuche es noch einmal.", "bad");
@@ -2726,7 +2745,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
         date = iso;
       } else if (i > 0 && qt !== QUESTIONS[i]) return bad;
       const s = g.ans[0].start, e = g.ans[g.ans.length - 1].end, text = t.slice(s, e);
-      if ((i === 0 && text !== "") || text.length > MAX_ANSWER) return bad;
+      if ((i === 0 && text !== "") || text.length > 2 * MAX_ANSWER) return bad;   // WebKit zählt maxlength in Graphemen (Emoji = 1)
       answers.push(text);
       gaps.push(m.slice(s, e).map((x) => (Array.isArray(x) && typeof x[1] === "number" && isFinite(x[1]) ? Math.round(x[1]) : -1)));
     }
@@ -2739,6 +2758,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     if (!file) return;
     if (file.size > PDF_MAX_BYTES) { err.textContent = "Diese Datei ist zu groß für einen Zwischenstand aus dem Lerntagebuch-Feiditor."; return; }
     busy(btn, true, "Wird gelesen …");
+    const run = S.run;
     try {
       let str;
       try { str = await readAsBinaryStr(file); } catch (e) { err.textContent = "Die Datei ließ sich nicht lesen. Bitte versuche es noch einmal."; return; }
@@ -2753,6 +2773,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
       let payload;
       try { payload = (await autoDecrypt(tm[1])).payload; }
       catch (e) { err.textContent = "Diese PDF-Datei ließ sich nicht lesen. Lade bitte die unveränderte Datei hoch, die du hier gesichert hast."; return; }
+      if (run !== S.run) return;   // inzwischen „Schreibbereich öffnen“ – das späte Ergebnis nicht darüberlegen
       const st = parseLtbPayload(payload);
       if (st.error === "old") { err.textContent = "Diese PDF-Datei stammt aus einer älteren Version des Lerntagebuch-Feiditors oder aus einem anderen Feiditor und lässt sich hier nicht laden. Beginne bitte einen neuen Eintrag."; return; }
       if (st.error) { err.textContent = "Diese PDF-Datei ist beschädigt oder wurde verändert. Lade bitte die unveränderte Datei hoch, die du hier gesichert hast."; return; }
@@ -2770,7 +2791,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
 
   /* ---------- Start, Schreibbereich, Abschluss ---------- */
   function showPersonError(bad) {
-    ["lb-vorname", "lb-nachname", "lb-klasse"].forEach((id) => byId(id).classList.toggle("invalid", id === bad.field));
+    ["lb-vorname", "lb-nachname", "lb-klasse"].forEach((id) => { const on = id === bad.field; byId(id).classList.toggle("invalid", on); if (on) byId(id).setAttribute("aria-invalid", "true"); else byId(id).removeAttribute("aria-invalid"); });
     byId("lb-start-err").textContent = bad.msg;
     focusEl(byId(bad.field));
   }
@@ -2778,7 +2799,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     const vn = cleanName(byId("lb-vorname").value), nn = cleanName(byId("lb-nachname").value), kl = normKlasse(byId("lb-klasse").value);
     const bad = checkPerson(vn, nn, kl);
     if (bad) { showPersonError(bad); return; }
-    ["lb-vorname", "lb-nachname", "lb-klasse"].forEach((id) => byId(id).classList.remove("invalid"));
+    ["lb-vorname", "lb-nachname", "lb-klasse"].forEach((id) => { byId(id).classList.remove("invalid"); byId(id).removeAttribute("aria-invalid"); });
     byId("lb-start-err").textContent = "";
     const st = S.pending; S.pending = null;
     openEditor({ vn, nn, kl }, st);
@@ -2801,9 +2822,9 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
         updateCounter(ta);
       });
     }
-    S.seq = 0; S.savedSeq = 0;
-    const note = byId("lb-ed-note");
-    note.textContent = restored ? (restored.interim ? "Dein Zwischenstand ist geladen – du kannst direkt weiterschreiben." : "Deine Lerntagebuch-PDF ist geladen – du kannst direkt weiterschreiben. Lade danach nur die neue Datei bei Moodle hoch.") : "";
+    S.seq = 0; S.savedSeq = 0; S.savedAt = "";
+    const note = byId("lb-ed-note"), msg = restored ? (restored.interim ? "Dein Zwischenstand ist geladen – du kannst direkt weiterschreiben." : "Deine Lerntagebuch-PDF ist geladen – du kannst direkt weiterschreiben. Lade danach nur die neue Datei bei Moodle hoch.") : "";
+    note.textContent = "";
     note.classList.toggle("hidden", !restored);
     setStatus(byId("lb-save-state"), "", ""); setStatus(byId("lb-final-status"), "", "");
     byId("lb-steps-list").textContent = "";
@@ -2811,6 +2832,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     byId("lb-paperwrap").scrollTop = 0;
     updateProgress();
     growAll();
+    if (msg) { const r = S.run; setTimeout(() => { if (r === S.run) note.textContent = msg; }, 80); }   // erst eingeblendet, dann gefüllt – sonst nicht angesagt
     const first = !S.date ? byId("lb-date") : S.tas.find((ta) => ta && !ta.value.trim()) || S.tas.find(Boolean);
     focusSoon(first);
   }
@@ -2828,7 +2850,7 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     if (unsaved()) {
       const ok = await askConfirm({
         title: "Eintrag verwerfen?",
-        text: "Deine Antworten werden verworfen. Diese Seite speichert nichts im Browser – hast du sie nicht als Zwischenstand-PDF oder als fertige Lerntagebuch-PDF heruntergeladen, sind sie danach weg.",
+        text: "Deine letzten Änderungen stehen noch in keiner heruntergeladenen PDF-Datei – auch nicht in einem früher gesicherten Zwischenstand. Diese Seite speichert nichts im Browser: Verwirfst du jetzt, sind sie weg.",
         ok: "Verwerfen und neu beginnen", cancel: "Weiterschreiben", danger: true
       });
       if (ok !== true) return;
@@ -2842,8 +2864,12 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
   byId("lb-resume-btn").addEventListener("click", () => byId("lb-resume-file").click());
   byId("lb-resume-file").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) readResume(f); });
   byId("lb-final").addEventListener("click", onFinal);
-  byId("lb-interim").addEventListener("click", onInterim);
+  byId("lb-interim").addEventListener("click", (e) => { if (!(e.detail > 1)) onInterim(); });   // Doppelklick: nur ein Zwischenstand
   byId("lb-cancel").addEventListener("click", onCancel);
+  const doneTooSoon = (e) => e.isTrusted && (e.detail > 1 || Date.now() - (S.doneAt || 0) < 500);
+  ["lb-done-again", "lb-done-back", "lb-done-new"].forEach((id) => byId(id).addEventListener("click", (e) => {
+    if (doneTooSoon(e)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true));
   byId("lb-done-back").addEventListener("click", () => { showView("lb-editor"); growAll(); focusSoon(byId("lb-final")); });
   byId("lb-done-new").addEventListener("click", leaveToStart);
   // Warnung beim Schließen oder Neuladen, solange etwas nicht als PDF-Datei heruntergeladen ist (die Seite speichert nichts)
