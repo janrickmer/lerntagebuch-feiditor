@@ -1,8 +1,10 @@
 // Ende-zu-Ende-Test des Lerntagebuch-Feiditors: Ablauf im Browser (Chromium über Playwright) und Auswertung der erzeugten
 // PDF-Dateien mit dem Code von „Check des Feind(t)es“ (siehe check-harness.mjs).
 // Aufruf: CHECK_HTML=<Pfad zur index.html des Checks> node test/e2e.mjs   (Playwright muss installiert sein)
+// Gegen die veröffentlichte Seite: zusätzlich LTB_URL=https://lerntagebuch-feiditor.janrickmer.de/ (sonst lokaler Server).
 // LanguageTool wird per page.route nachgestellt – es geht keine Anfrage ins Netz.
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,10 +22,19 @@ const server = http.createServer((req, res) => {
   res.end(fs.readFileSync(f));
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const ORIGIN = "http://127.0.0.1:" + server.address().port;
-const URL_ = ORIGIN + "/index.html";
+const URL_ = process.env.LTB_URL || "http://127.0.0.1:" + server.address().port + "/index.html";
+const ORIGIN = new URL(URL_).origin;
+console.log("Seite:", URL_);
 const OUT = fs.mkdtempSync(path.join(os.tmpdir(), "ltb-e2e-"));
 let fails = 0;
+/* PDF-Aufbau prüfen: jede Länge passt (endstream direkt dahinter), jeder Querverweis zeigt auf „n 0 obj“, startxref auf „xref“ */
+function xrefOk(s) {
+  for (const m of s.matchAll(/<< \/Length (\d+) >>\nstream\n/g)) { const e = m.index + m[0].length + +m[1]; if (s.slice(e, e + 9) !== "endstream") return false; }
+  const sx = +(/startxref\n(\d+)\n%%EOF$/.exec(s) || [])[1]; if (s.slice(sx, sx + 5) !== "xref\n") return false;
+  const rows = s.slice(sx).split("\n").slice(3).filter((l) => / 00000 n $/.test(l));
+  return rows.length > 0 && rows.every((l, i) => s.slice(+l.slice(0, 10), +l.slice(0, 10) + 12).startsWith((i + 1) + " 0 obj\n"));
+}
+function pdfText(p) { try { return execFileSync("pdftotext", ["-q", p, "-"], { encoding: "latin1" }); } catch (e) { return null; } }   // ohne pdftotext: übersprungen
 const ok = (cond, label, extra) => { if (cond) console.log("  ✓", label); else { fails++; console.log("  ✗", label, extra !== undefined ? JSON.stringify(extra) : ""); } };
 
 const browser = await chromium.launch();
@@ -115,6 +126,12 @@ const ri = summary(await analyze(interim.name, interim.bytes));
 console.log("    Check:", JSON.stringify(ri));
 ok(ri.kind === "lerntagebuch" && ri.interim === true && !ri.interimMismatch && !ri.err, "Check: Lerntagebuch, Zwischenstand");
 ok((await page.textContent("#lb-save-state")).startsWith("Zwischenstand gesichert"), "Status nach dem Sichern");
+const NOTE = "(Bitte diese PDF-Datei herunterladen und bei Moodle hochladen.) Tj";
+const iStr = latin1(interim.bytes);
+ok(!iStr.includes(NOTE) && !iStr.includes("0.78 0.05 0.05 rg"), "Zwischenstand-PDF ohne Hochlade-Auftrag");
+ok(xrefOk(iStr), "Zwischenstand-PDF: Längen und Querverweise stimmen");
+const iText = pdfText(interim.path);
+ok(iText === null || (iText.includes("Max Muster-Mann") && iText.includes("Gewaltenteilung") && !iText.includes("Moodle")), "Zwischenstand-PDF lesbar (pdftotext), ohne „Moodle“", iText && iText.slice(0, 200));
 await page.type("#lb-a-5", "!", { delay: 50 }); await page.keyboard.press("Backspace");
 ok((await page.textContent("#lb-save-state")).includes("seitdem geändert"), "Status nach einer Änderung: seitdem geändert", await page.textContent("#lb-save-state"));
 
@@ -156,6 +173,8 @@ const nl3 = pl.t.indexOf("besprochen.\nLegislative") + "besprochen.".length;
 ok(pl.f[nl3] === 0 && pl.m[nl3][0] === "t" && pl.m[nl3][1] >= 0, "Nutzdaten: getippter Zeilenumbruch als normaler Trenner", [pl.f[nl3], pl.m[nl3]]);
 ok(!pl.m.some((x) => x[0] === "p"), "Nutzdaten: nichts als eingefügt markiert");
 const pdfStr = latin1(fin.bytes);
+ok(pdfStr.includes(NOTE), "fertige PDF mit dem Hinweis „… bei Moodle hochladen.“");
+ok(xrefOk(pdfStr), "fertige PDF: Längen und Querverweise stimmen");
 ok(pdfStr.startsWith("%PDF-1.7\n") && /\n%TRACKDATA [^\n]+\n1 0 obj/.test(pdfStr), "PDF: TRACKDATA im Kopf");
 ok(pdfStr.includes("(Max Muster-Mann \xB7 Klasse 8b) Tj"), "PDF: Name und Klasse oben sichtbar");
 

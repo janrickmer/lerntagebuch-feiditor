@@ -2642,6 +2642,50 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     });
     return { text: chars.join(""), fmt, blocks, recs: rr };
   }
+  /* Zwischenstand ohne Hochlade-Auftrag (Entscheidung des Betreibers): buildPdf der Engine setzt auf jede PDF unten rot „Bitte diese
+     PDF-Datei herunterladen und bei Moodle hochladen.“ Beim Zwischenstand nimmt dieses Skript den Hinweis wieder heraus: Der rote
+     Textblock fällt aus dem Content-Stream der letzten Textseite, /Length und Querverweistabelle werden neu berechnet; Kopf samt
+     %TRACKDATA, alle anderen Objekte und der Trailer bleiben, wie die Engine sie schreibt. Passt etwas nicht genau zu diesem
+     Aufbau, bleibt die PDF unverändert – nie eine kaputte Datei. Die Engine selbst bleibt unverändert (byte-identisch). */
+  const NOTE_TEXT = "Bitte diese PDF-Datei herunterladen und bei Moodle hochladen.";
+  const NOTE_BLOCK_RE = /BT 1 0 0 1 -?[\d.]+ -?[\d.]+ Tm 0\.78 0\.05 0\.05 rg\n((?:\/F1 [\d.]+ Tf \((?:[^()\\\n]|\\[\s\S])*\) Tj\n)+)ET\n/g;
+  function stripMoodleNote(pdf) {
+    try {
+      const first = pdf.search(/\n1 0 obj\n/), xi = pdf.lastIndexOf("\nxref\n"), ti = pdf.lastIndexOf("\ntrailer\n"), si = pdf.lastIndexOf("\nstartxref\n");
+      if (first < 0 || xi < first || ti < xi || si < ti) return pdf;
+      const head = pdf.slice(0, first + 1), trailer = pdf.slice(ti + 9, si);
+      const objs = []; let pos = first + 1, hits = 0;
+      while (pos < xi + 1) {
+        const m = /^(\d+) 0 obj\n/.exec(pdf.slice(pos, pos + 24));
+        if (!m || +m[1] !== objs.length + 1) return pdf;
+        const at = pos + m[0].length, sm = /^<< \/Length (\d+) >>\nstream\n/.exec(pdf.slice(at, at + 40));
+        if (sm) {
+          const from = at + sm[0].length, len = +sm[1], to = from + len;
+          if (pdf.slice(to, to + 17) !== "endstream\nendobj\n") return pdf;
+          let data = pdf.slice(from, to);
+          const blocks = [...data.matchAll(NOTE_BLOCK_RE)];
+          if (blocks.length) {
+            const said = blocks.map((b) => [...b[1].matchAll(/\(((?:[^()\\\n]|\\[\s\S])*)\) Tj\n/g)].map((x) => x[1].replace(/\\([\s\S])/g, "$1")).join("")).join("");
+            if (said.replace(/\s/g, "") !== NOTE_TEXT.replace(/\s/g, "")) return pdf;
+            data = data.replace(NOTE_BLOCK_RE, ""); hits++;
+          }
+          objs.push({ stream: data }); pos = to + 17;
+        } else {
+          const end = pdf.indexOf("\nendobj\n", at); if (end < 0 || end > xi) return pdf;
+          objs.push({ body: pdf.slice(at, end) }); pos = end + 8;
+        }
+      }
+      if (hits !== 1) return pdf;
+      let out = head; const offs = [];
+      objs.forEach((o, i) => {
+        offs.push(out.length);
+        out += o.stream != null ? `${i + 1} 0 obj\n<< /Length ${o.stream.length} >>\nstream\n${o.stream}endstream\nendobj\n` : `${i + 1} 0 obj\n${o.body}\nendobj\n`;
+      });
+      const xref = out.length;
+      out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offs.map((n) => String(n).padStart(10, "0") + " 00000 n \n").join("");
+      return out + `trailer\n${trailer}\nstartxref\n${xref}\n%%EOF`;
+    } catch (e) { return pdf; }
+  }
   async function buildFile(interim) {
     const p = S.person, ser = serializeAnswers(), name = (p.vn + " " + p.nn).trim();
     let payload;
@@ -2652,7 +2696,8 @@ $("code-input").addEventListener("keydown",e=>{if(e.key==="Enter")showTeacherRes
     payload.ltb = 1;                          // Kennung: Lerntagebuch in Aufgabenform (nur damit lässt sich ein Zwischenstand wieder laden)
     payload.kl = p.kl;                        // Klasse (für das Weiterarbeiten; der Check liest sie nicht)
     const bundle = await aesEncrypt(JSON.stringify(payload), _kf(p.vn));
-    const pdfStr = buildPdf({ name: name + " · Klasse " + p.kl, text: ser.text, fmt: ser.fmt, trackB64: bundle });
+    let pdfStr = buildPdf({ name: name + " · Klasse " + p.kl, text: ser.text, fmt: ser.fmt, trackB64: bundle });
+    if (interim) pdfStr = stripMoodleNote(pdfStr);   // Zwischenstand: ohne „… bei Moodle hochladen“
     const u8 = new Uint8Array(pdfStr.length);
     for (let i = 0; i < pdfStr.length; i++) u8[i] = pdfStr.charCodeAt(i) & 0xff;
     studentVorname = p.vn; studentNachname = p.nn;   // Dateinamen der Engine lesen diese beiden

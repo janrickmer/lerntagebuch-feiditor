@@ -40,6 +40,10 @@
   `ltb: 1` (Kennung – nur solche Zwischenstände lassen sich laden; ältere Lerntagebuch- und andere Feiditor-PDFs
   nicht) und `kl` (Klasse); der Check verwirft unbekannte Felder. Klasse nur sichtbar im PDF-Kopf („Name · Klasse 8b“).
   Dateiname unverändert `Lerntagebucheintrag_Vorname_Nachname_TTMMJJJJ.pdf`, Zwischenstand wie bisher.
+  **Zwischenstand-PDF ohne Hochlade-Auftrag** (Entscheidung des Betreibers): `buildPdf` der Engine setzt auf jede PDF
+  „Bitte diese PDF-Datei herunterladen und bei Moodle hochladen.“; `stripMoodleNote()` nimmt den roten Textblock beim
+  Zwischenstand wieder heraus (Content-Stream, `/Length` und Querverweise neu; Kopf mit `%TRACKDATA`, übrige Objekte
+  und Trailer unverändert; passt der Aufbau nicht genau, bleibt die PDF unverändert). Die fertige PDF behält den Hinweis.
 - **Tippzeiten:** je Antwortfeld `ta._tt` (Messkern aus dem Feibeitsblatt: `ttDiff`/`ttNew`/`ttApply`, Zeitpunkt
   `performance.now()` im Capture-Listener `input`, Rückgängig holt Zeiten zurück); `gapsOf` liefert je UTF-16-Einheit
   den Abstand zum vorigen Zeichen in ms (ganzzahlig, ungedeckelt wie in der Engine; -1 = unbekannt bzw. erstes Zeichen;
